@@ -1,0 +1,6 @@
+@AREML.EPOD.API_HostAddress = http://localhost:5230
+
+GET {{AREML.EPOD.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
