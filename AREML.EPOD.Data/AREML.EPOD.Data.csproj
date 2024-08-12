@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AREML.EPOD.Core\AREML.EPOD.Core.csproj" />
     <ProjectReference Include="..\AREML.EPOD.Interfaces\AREML.EPOD.Interfaces.csproj" />
   </ItemGroup>
 

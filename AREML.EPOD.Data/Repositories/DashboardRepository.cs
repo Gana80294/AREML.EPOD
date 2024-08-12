@@ -1,10 +1,12 @@
 ﻿using AREML.EPOD.Interfaces.IRepositories;
+using AREML.EPOD.Do;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AREML.EPOD.Core.Entities;
 
 namespace AREML.EPOD.Data.Repositories
 {
