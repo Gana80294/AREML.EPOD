@@ -1,6 +1,12 @@
 
+using AREML.EPOD.API.Extensions;
+using AREML.EPOD.Core.Configurations;
 using AREML.EPOD.Core.Entities;
+using AREML.EPOD.Data.Helpers;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace AREML.EPOD.API
 {
@@ -19,6 +25,41 @@ namespace AREML.EPOD.API
             builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
 
             builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext")));
+            builder.Services.AddSingleton<PasswordEncryptor>();
+
+            // Add Configuration Settings
+            builder.Services.Configure<JwtSetting>(builder.Configuration.GetSection("JWTSecurity"));
+
+            // Add Authentication
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+
+            }).AddJwtBearer(jwt =>
+            {
+                jwt.RequireHttpsMetadata = false;
+                jwt.SaveToken = true;
+                jwt.TokenValidationParameters = new TokenValidationParameters
+                {
+                    RequireExpirationTime = true,
+                    ValidateLifetime = true,
+                    RequireSignedTokens = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration.GetSection("JWTSecurity").GetValue<string>("securityKey"))),
+                    ValidateIssuer = true,
+                    ValidIssuer = builder.Configuration.GetSection("JWTSecurity").GetValue<string>("issuer"),
+                    ValidateAudience = true,
+                    ValidAudience = builder.Configuration.GetSection("JWTSecurity").GetValue<string>("audience")
+                };
+            });
+
+            builder.Services.AddControllers().AddJsonOptions(opt =>
+            {
+                opt.JsonSerializerOptions.PropertyNamingPolicy = null;
+            });
+            builder.Services.AddRepositories();
 
 
             var app = builder.Build();
