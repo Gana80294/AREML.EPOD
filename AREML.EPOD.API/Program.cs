@@ -1,5 +1,8 @@
 
 using AREML.EPOD.Core.Entities;
+using AREML.EPOD.Data.Helpers;
+using AREML.EPOD.Data.Repositories;
+using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace AREML.EPOD.API
@@ -19,7 +22,10 @@ namespace AREML.EPOD.API
             builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
 
             builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext")));
+            builder.Services.AddScoped<IMasterRepository,MasterRepository>();
 
+            builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+            builder.Services.AddSingleton<PasswordEncryptor>();
 
             var app = builder.Build();
 
