@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AREML.EPOD.Interfaces.IRepositories;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace AREML.EPOD.Data.Repositories
 {
-    internal class DataMigrationRepository
+    public class DataMigrationRepository:IDataMigrationRepository
     {
     }
 }
