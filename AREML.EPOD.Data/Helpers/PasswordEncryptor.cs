@@ -16,9 +16,11 @@ namespace AREML.EPOD.Data.Helpers
 
 
         public PasswordEncryptor(IConfiguration configuration)
-        {
+            {
             _appSetting = configuration.GetSection("AppSettings").Get<AppSetting>();
-        }
+            }
+       
+
         public string Encrypt(string Password, bool useHashing)
         {
             try

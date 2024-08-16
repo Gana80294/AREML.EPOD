@@ -3,7 +3,8 @@ using AREML.EPOD.API.Extensions;
 using AREML.EPOD.Core.Configurations;
 using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Data.Helpers;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+using AREML.EPOD.Data.Repositories;
+using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -61,6 +62,8 @@ namespace AREML.EPOD.API
             });
             builder.Services.AddRepositories();
 
+            builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+            builder.Services.AddSingleton<PasswordEncryptor>();
 
             var app = builder.Build();
 
