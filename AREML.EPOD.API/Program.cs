@@ -1,12 +1,10 @@
-
 using AREML.EPOD.API.Extensions;
 using AREML.EPOD.Core.Configurations;
 using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Data.Helpers;
-using AREML.EPOD.Data.Repositories;
-using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 
 namespace AREML.EPOD.API

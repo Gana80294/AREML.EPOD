@@ -28,7 +28,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 var userResult = (from td in _ctx.Users
                                   select td).Where(x => x.UserID == UserID).FirstOrDefault();
-                var result = (from td in _ctx.P_INV_HEADER_DETAILS
+                var result = (from td in _ctx.P_INV_HEADER_DETAIL
                               select td).Where(x => x.PLANT == "1" && x.IS_ACTIVE).ToList();
                 return result;
             }
@@ -42,7 +42,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var header = _ctx.P_INV_HEADER_DETAILS.FirstOrDefault(i => i.INV_NO == payload.InvNo);
+                var header = _ctx.P_INV_HEADER_DETAIL.FirstOrDefault(i => i.INV_NO == payload.InvNo);
                 if (header == null)
                 {
                     throw new Exception("Invoice not found");
@@ -74,7 +74,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                return this._ctx.P_INV_HEADER_DETAILS.Where(x => x.INV_NO == InvNo).ToList();
+                return this._ctx.P_INV_HEADER_DETAIL.Where(x => x.INV_NO == InvNo).ToList();
             }
             catch (Exception ex)
             {

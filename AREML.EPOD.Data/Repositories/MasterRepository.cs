@@ -14,17 +14,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Protocols;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 using System.Web;
-using System.Web.Mvc;
 
 
 namespace AREML.EPOD.Data.Repositories
@@ -2217,7 +2209,7 @@ namespace AREML.EPOD.Data.Repositories
                     string DecryptedPassword =_passwordEncryptor.Decrypt(user.Password, true);
                     if (DecryptedPassword == changePassword.CurrentPassword)
                     {
-                        string DefaultPassword = ConfigurationManager.AppSettings["DefaultPassword"];
+                        string DefaultPassword = _configuration.GetSection("AppSettings")["DefaultPassword"];
                         if (changePassword.NewPassword == DefaultPassword)
                         {
                             throw new Exception("New password should be different from default password.");
