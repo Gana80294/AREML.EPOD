@@ -39,7 +39,7 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<UserPlantMap> UserPlantMaps { get; set; }
         public DbSet<UserLoginHistory> UserLoginHistories { get; set; }
         public DbSet<TokenHistory> TokenHistories { get; set; }
-        public DbSet<P_INV_HEADER_DETAIL> P_INV_HEADER_DETAILS { get; set; }
+        public DbSet<P_INV_HEADER_DETAIL> P_INV_HEADER_DETAIL { get; set; }
         public DbSet<P_INV_ITEM_DETAIL> P_INV_ITEM_DETAIL { get; set; }
         public DbSet<P_INV_ATTACHMENT> P_INV_ATTACHMENT { get; set; }
 
