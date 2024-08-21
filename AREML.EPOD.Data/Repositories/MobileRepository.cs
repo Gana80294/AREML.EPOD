@@ -51,7 +51,14 @@ namespace AREML.EPOD.Data.Repositories
                                       join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                       join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
                                       join tb4 in queryable on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
-                                      where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID && (!isFromDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date >= (DateTime?)filterClass.StartDate.Value.Date)) && (!isEndDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date <= (DateTime?)filterClass.EndDate.Value.Date)) && (!isOrganization || filterClass.Organization.Any((string x) => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any((string x) => x == tb.DIVISION)) && (!isPlant || filterClass.PlantList.Any((string x) => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any((string k) => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
+                                      where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID &&
+                                      (!isFromDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date >= (DateTime?)filterClass.StartDate.Value.Date)) 
+                                      && (!isEndDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date <= (DateTime?)filterClass.EndDate.Value.Date))
+                                      && (!isOrganization || filterClass.Organization.Any((string x) => x == tb.ORGANIZATION)) &&
+                                      (!isDivision || filterClass.Division.Any((string x) => x == tb.DIVISION)) &&
+                                      (!isPlant || filterClass.PlantList.Any((string x) => x == tb.PLANT)) &&
+                                      (!isCustomerGroup || filterClass.CustomerGroup.Any((string k) => k == tb.CUSTOMER_GROUP_DESC)) 
+                                      && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                       select new { tb.HEADER_ID, tb.INV_NO, tb.INV_DATE, tb.STATUS }).ToListAsync();
                     invoiceStatusCount.TotalInvoices = list.Count;
                     invoiceStatusCount.ConfirmedInvoices = (from tb in list

@@ -70,7 +70,7 @@ namespace AREML.EPOD.Data.Repositories
                         {
                             isChangePasswordRequired = "Yes";
                         }
-                        this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
+                        await this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
                         var Plants = _dbContext.UserPlantMaps.Where(x => x.UserID == user.UserID).Select(y => y.PlantCode).ToList();
                         if (userRoles != null)
                         {
@@ -95,10 +95,11 @@ namespace AREML.EPOD.Data.Repositories
                         authResponse.UserName = user.UserName;
                         authResponse.Email = user.Email;
                         authResponse.ContactNumber = user.ContactNumber;
+                        authResponse.Role = userRoles.RoleName;
                         authResponse.MenuItemLists = MenuItemList;
                         authResponse.Plants = Plants;
                         authResponse.UserCode = user.UserCode;
-                        authResponse.Role = userRoles.RoleID.ToString();
+                        authResponse.Role_Id = userRoles.RoleID;
                         authResponse.Token = GenerateToken(authResponse);
                         return authResponse;
                     }

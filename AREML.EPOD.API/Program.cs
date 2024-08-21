@@ -62,6 +62,9 @@ namespace AREML.EPOD.API
 
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddSingleton<PasswordEncryptor>();
+            builder.Services.AddSingleton<ExcelHelper>();
+            builder.Services.AddSingleton<PdfCompresser>();
+            builder.Services.AddHttpContextAccessor();
 
             var app = builder.Build();
 

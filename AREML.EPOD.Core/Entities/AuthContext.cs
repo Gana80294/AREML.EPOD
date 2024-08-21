@@ -61,7 +61,7 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<RPOD_MATERIAL> RPOD_MATERIAL_DETAILS { get; set; }
         public DbSet<RPOD_LR_DETAIL> RPOD_LR_DETAILS { get; set; }
         public DbSet<RPOD_LR_ATTACHMENT> RPOD_LR_ATTACHMENTS { get; set; }
-        public DbSet<WARRANTY_REPLACEMENT> WARRANTY_REPLACEMENT_DETAILS { get; set; }
+        public DbSet<WARRANTY_REPLACEMENT> WARRANTY_REPLACEMENT { get; set; }
         public DbSet<ReversePodApprover> ReversePodApprovers { get; set; }
         public DbSet<MobileVersion> MobileVersions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -14,12 +14,11 @@ namespace AREML.EPOD.Data.Helpers
     {
         private readonly AppSetting _appSetting;
 
-
         public PasswordEncryptor(IConfiguration configuration)
-            {
+        {
             _appSetting = configuration.GetSection("AppSettings").Get<AppSetting>();
-            }
-       
+        }
+
 
         public string Encrypt(string Password, bool useHashing)
         {
