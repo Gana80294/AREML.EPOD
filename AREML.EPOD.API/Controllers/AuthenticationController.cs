@@ -1,7 +1,7 @@
 ﻿using AREML.EPOD.Core.Dtos.Auth;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Interfaces.IRepositories;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AREML.EPOD.API.Controllers
@@ -28,6 +28,8 @@ namespace AREML.EPOD.API.Controllers
         {
             return Ok(await this._auth.ForgotPassword(forgotPassword));
         }
+
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> ChangePassword(ForgotPasswordOTP forgotPassword)
         {
