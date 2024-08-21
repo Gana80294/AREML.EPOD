@@ -6,6 +6,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
+using NPOI.SS.Formula.Functions;
+using AutoMapper;
+using AREML.EPOD.Data.Mapper;
 
 namespace AREML.EPOD.API
 {
@@ -62,6 +65,7 @@ namespace AREML.EPOD.API
 
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddSingleton<PasswordEncryptor>();
+            builder.Services.AddSingleton<MasterProfile>();
 
             var app = builder.Build();
 
@@ -76,6 +80,7 @@ namespace AREML.EPOD.API
 
             app.UseAuthorization();
 
+            app.UseCors("cors");
 
             app.MapControllers();
 
