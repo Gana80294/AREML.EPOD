@@ -261,8 +261,19 @@ namespace AREML.EPOD.Data.Repositories
                 bool isEndDate = filterClass.EndDate.HasValue;
                 DeliveryCount deliveryCount = new DeliveryCount();
                 var list = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                  where tb.CUSTOMER == filterClass.UserCode && tb.IS_ACTIVE && (!isFromDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date >= (DateTime?)filterClass.StartDate.Value.Date)) && (!isEndDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date <= (DateTime?)filterClass.EndDate.Value.Date)) && tb.STATUS.ToLower() != "open"
-                                  select new { tb.HEADER_ID, tb.INV_NO, tb.ACTUAL_DELIVERY_DATE, tb.PROPOSED_DELIVERY_DATE, tb.VEHICLE_REPORTED_DATE }).ToListAsync();
+                                  where tb.CUSTOMER == filterClass.UserCode && 
+                                  tb.IS_ACTIVE && 
+                                  (!isFromDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date >= (DateTime?)filterClass.StartDate.Value.Date)) && 
+                                  (!isEndDate || (tb.INV_DATE.HasValue && (DateTime?)tb.INV_DATE.Value.Date <= (DateTime?)filterClass.EndDate.Value.Date)) &&
+                                  tb.STATUS.ToLower() != "open"
+                                  select new 
+                                  { 
+                                      tb.HEADER_ID, 
+                                      tb.INV_NO,
+                                      tb.ACTUAL_DELIVERY_DATE,
+                                      tb.PROPOSED_DELIVERY_DATE,
+                                      tb.VEHICLE_REPORTED_DATE
+                                  }).ToListAsync();
                 deliveryCount.TotalDelivery = list.Count;
                 deliveryCount.InLineDelivery = (from tb in list
                                                 where !tb.PROPOSED_DELIVERY_DATE.HasValue || !tb.VEHICLE_REPORTED_DATE.HasValue || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date

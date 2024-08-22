@@ -72,6 +72,8 @@ namespace AREML.EPOD.API
                 app.UseSwaggerUI();
             }
 
+            app.UseCors("cors");
+
             app.UseHttpsRedirection();
 
             app.UseAuthorization();

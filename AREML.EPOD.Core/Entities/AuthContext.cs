@@ -46,7 +46,7 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<CustomerGroup> CustomerGroups { get; set; }
 
         public DbSet<SLSGroupWithCustomerGroupMap> SLSGroupWithCustomerGroupMaps { get; set; }
-        public DbSet<SMSOTPChangePasswordHistory> SMSOTPChnagePasswordHistories { get; set; }
+        public DbSet<SMSOTPChangePasswordHistory> SMSOTPChangePasswordHistories { get; set; }
 
         public DbSet<UserCreationErrorLog> UserCreationErrorLogs { get; set; }
         public DbSet<UserActionHistory> UserActionHistories { get; set; }

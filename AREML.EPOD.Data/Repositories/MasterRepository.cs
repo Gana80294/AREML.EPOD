@@ -2643,7 +2643,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChnagePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
+                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChangePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
 
                 if (sMSOTP != null)
                 {

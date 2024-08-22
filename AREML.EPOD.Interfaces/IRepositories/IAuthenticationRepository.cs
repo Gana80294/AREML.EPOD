@@ -1,6 +1,7 @@
 ﻿using AREML.EPOD.Core.Dtos.Auth;
 using AREML.EPOD.Core.Dtos.Response;
 using AREML.EPOD.Core.Entities.Master;
+using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,8 @@ namespace AREML.EPOD.Interfaces.IRepositories
     {
         Task<AuthenticationResponse> AuthenticateUser(LoginDetails loginDetails);
         Task<bool> ForgotPassword(ForgotPassword forgotPassword);
-        Task<bool> ChangePassword(ForgotPasswordOTP forgotPasswordOTP);
+        Task<string> ChangePassword(ChangePassword changePassword);
+        Task<OTPResponseBody> PasswordResetSendSMSOTP(string username);
+        Task<string> ResetPasswordWithSMSOTP(AffrimativeOTPBody otpBody);
     }
 }

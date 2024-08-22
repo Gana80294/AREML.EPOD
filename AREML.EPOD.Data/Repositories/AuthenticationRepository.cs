@@ -5,17 +5,23 @@ using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Data.Helpers;
+using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using NPOI.OpenXmlFormats.Wordprocessing;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
+using System.Net;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace AREML.EPOD.Data.Repositories
 {
@@ -25,6 +31,8 @@ namespace AREML.EPOD.Data.Repositories
         private readonly JwtSetting _jwtSetting;
         private readonly PasswordEncryptor _passwordEncryptor;
         private readonly IMasterRepository _masterRepository;
+        private readonly OtpHelper _otp;
+        private readonly string _defaultPwd;
 
         public AuthenticationRepository(AuthContext context, IConfiguration config, PasswordEncryptor passwordEncryptor, IMasterRepository masterRepository)
         {
@@ -32,6 +40,8 @@ namespace AREML.EPOD.Data.Repositories
             _jwtSetting = config.GetSection("JWTSecurity").Get<JwtSetting>();
             _passwordEncryptor = passwordEncryptor;
             _masterRepository = masterRepository;
+            _defaultPwd = config.GetValue<string>("AppSettings:DefaultPassword");
+            _otp = new OtpHelper(config);
         }
 
         public async Task<AuthenticationResponse> AuthenticateUser(LoginDetails loginDetails)
@@ -70,7 +80,7 @@ namespace AREML.EPOD.Data.Repositories
                         {
                             isChangePasswordRequired = "Yes";
                         }
-                        this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
+                        await this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
                         var Plants = _dbContext.UserPlantMaps.Where(x => x.UserID == user.UserID).Select(y => y.PlantCode).ToList();
                         if (userRoles != null)
                         {
@@ -236,66 +246,123 @@ namespace AREML.EPOD.Data.Repositories
             return true;
         }
 
-        public async Task<bool> ChangePassword(ForgotPasswordOTP forgotPasswordOTP)
+        #region Change&Forgot_Password
+        public async Task<string> ChangePassword(ChangePassword changePassword)
         {
-            string result = string.Empty;
             try
             {
-                User user = (from tb in _dbContext.Users
-                             where tb.UserCode == forgotPasswordOTP.UserCode && tb.IsActive
-                             select tb).FirstOrDefault();
+                User user = await _dbContext.Users.FirstOrDefaultAsync(x => x.UserName == changePassword.UserName && x.IsActive);
+                if (user == null)
+                    throw new Exception("The user name or password is incorrect.");
+                string decryptedPassword = _passwordEncryptor.Decrypt(user.Password, true);
+                if (decryptedPassword != changePassword.CurrentPassword)
+                    throw new Exception("Current password is incorrect.");
+                if (changePassword.NewPassword == _defaultPwd)
+                    throw new Exception("New password should be different from default password.");
 
-                if (user != null)
-                {
-                    try
-                    {
-                        TokenHistory history = _dbContext.TokenHistories.Where(x => x.UserID == user.UserID && x.OTP == forgotPasswordOTP.OTP).Select(r => r).FirstOrDefault();
-                        if (history != null)
-                        {
-                            if (DateTime.Now > history.ExpireOn)
-                            {
-                                throw new Exception("The given OTP has been expired,Try creating new otp");
-                            }
-                            else
-                            {
-                                if (!history.IsUsed)
-                                {
-                                    user.Password = _passwordEncryptor.Encrypt(forgotPasswordOTP.NewPassword, true);
-                                    user.IsActive = true;
-                                    user.ModifiedOn = DateTime.Now;
-                                    await _dbContext.SaveChangesAsync();
+                //update passwords
+                user.FourthLastPassword = user.ThirdLastPassword;
+                user.ThirdLastPassword = user.SecondLastPassword;
+                user.SecondLastPassword = user.LastPassword;
+                user.LastPassword = user.Password;
 
-                                    history.UsedOn = DateTime.Now;
-                                    history.IsUsed = true;
-                                    history.Comment = "OTP Used successfully";
-                                    await _dbContext.SaveChangesAsync();
-                                }
-                                else
-                                {
-                                    throw new Exception("The given OTP has already been used,Try creating new otp");
-                                }
-                            }
-                        }
-                        else
-                        {
-                            throw new Exception("The given OTP is invalid");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        throw ex;
-                    }
-                }
-                else
-                {
-                    throw new Exception("Invalid OTP");
-                }
+                user.Password = _passwordEncryptor.Encrypt(changePassword.NewPassword, true);
+                user.IsActive = true;
+                user.IsLocked = false;
+                user.ModifiedOn = DateTime.Now;
+                user.LastPasswordChangeDate = DateTime.Now;
+
+                await _dbContext.SaveChangesAsync();
+                return "Password changed successfully.";
             }
             catch (Exception ex)
             {
+                LogWriter.WriteToFile("AuthRepo/ChangePassword/Exception :- ", ex);
                 throw ex;
             }
-            return true;
         }
+
+        public async Task<OTPResponseBody> PasswordResetSendSMSOTP(string username)
+        {
+            using (var transaction = _dbContext.Database.BeginTransaction())
+            {
+                OTPResponseBody otpResponse = new OTPResponseBody();
+                try
+                {
+                    User user = await _dbContext.Users.FirstOrDefaultAsync(x => x.UserName == username || x.UserCode == username);
+                    if (user == null)
+                        throw new Exception("No user exists.");
+                    if (user.IsLocked)
+                        throw new Exception("User account is locked.");
+
+                    //send otp
+                    var response = await _otp.SendOTPAsync(user);
+                    if (response.Status.ToString() != "OK")
+                        throw new Exception($"{HttpStatusCode.BadRequest}, Error while sending OTP :- {response.Message.ToString()}");
+
+                    SMSOTPChangePasswordHistory otpHistory = new SMSOTPChangePasswordHistory();
+                    otpHistory.IsPasswordChanged = false;
+                    otpHistory.OTP = response.Otp;
+                    otpHistory.OTPCreatedOn = DateTime.Now;
+                    otpHistory.OTPExpiredOn = DateTime.Now.AddMinutes(5);
+                    otpHistory.OTPID = response.MsgId.ToString();
+                    otpHistory.OTPUsedOn = null;
+                    otpHistory.UserName = user.UserName;
+                    otpHistory.MobileNumber = user.ContactNumber;
+                    otpHistory.IsOTPUSed = false;
+
+                    await _dbContext.SMSOTPChangePasswordHistories.AddAsync(otpHistory);
+                    await _dbContext.SaveChangesAsync();
+                    transaction.Commit();
+                    transaction.Dispose();
+
+                    otpResponse.OTPtranID = response.MsgId.ToString();
+                    otpResponse.UserGuid = user.UserID;
+                    return otpResponse;
+                }
+                catch (Exception ex)
+                {
+                    LogWriter.WriteToFile("AuthRepo/PasswordResetSendSMSOTP/Exception :- ", ex);
+                    transaction.Rollback();
+                    transaction.Dispose();
+                    throw ex;
+                }
+            }
+        }
+
+        public async Task<string> ResetPasswordWithSMSOTP(AffrimativeOTPBody otpBody)
+        {
+            try
+            {
+                SMSOTPChangePasswordHistory otpHistory = await _dbContext.SMSOTPChangePasswordHistories.FirstOrDefaultAsync(x => x.OTPID == otpBody.OTPTransID && x.OTP == otpBody.recievedOTP);
+                if (otpHistory == null)
+                    throw new Exception("OTP not matching.");
+                if (otpHistory.OTPExpiredOn < DateTime.Now)
+                    throw new Exception("OTP expired.");
+                string encryptedPassword = _passwordEncryptor.Encrypt(otpBody.newPassword, true);
+
+                //update password
+                User user = await _dbContext.Users.FirstOrDefaultAsync(k => k.UserID == otpBody.UserGuid);
+                user.FourthLastPassword = user.ThirdLastPassword;
+                user.ThirdLastPassword = user.SecondLastPassword;
+                user.SecondLastPassword = user.LastPassword;
+                user.LastPassword = user.Password;
+                user.Password = encryptedPassword;
+
+                //update otp history
+                otpHistory.IsOTPUSed = true;
+                otpHistory.IsPasswordChanged = true;
+                otpHistory.OTPUsedOn = DateTime.Now;
+
+                await _dbContext.SaveChangesAsync();
+                return "Password updated successfully.";
+            }
+            catch(Exception ex)
+            {
+                LogWriter.WriteToFile("AuthRepo/ResetPasswordWithSMSOTP/Exception :- ", ex);
+                throw ex;
+            }
+        }
+        #endregion
     }
 }
