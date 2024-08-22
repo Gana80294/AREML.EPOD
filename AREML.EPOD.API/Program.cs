@@ -2,9 +2,16 @@ using AREML.EPOD.API.Extensions;
 using AREML.EPOD.Core.Configurations;
 using AREML.EPOD.Core.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Text;
+using NPOI.SS.Formula.Functions;
+using AutoMapper;
+using AREML.EPOD.Data.Mapper;
 using Newtonsoft.Json.Serialization;
 using AREML.EPOD.API.Auth;
 using AREML.EPOD.Data.Filters;
+using AREML.EPOD.Data.Helpers;
 
 namespace AREML.EPOD.API
 {
@@ -71,6 +78,11 @@ namespace AREML.EPOD.API
                 // Use the default property (Pascal) ca sing.
                 options.SerializerSettings.ContractResolver = new DefaultContractResolver();
             });
+            builder.Services.AddSingleton<PasswordEncryptor>();
+            builder.Services.AddSingleton<ExcelHelper>();
+            builder.Services.AddSingleton<PdfCompresser>();
+            builder.Services.AddHttpContextAccessor();
+            builder.Services.AddSingleton<MasterProfile>();
 
             var app = builder.Build();
 
@@ -81,6 +93,8 @@ namespace AREML.EPOD.API
                 app.UseSwaggerUI();
             }
 
+            app.UseCors("cors");
+
             app.UseHttpsRedirection();
 
             app.UseMiddleware<AuthMiddleware>();
@@ -88,6 +102,8 @@ namespace AREML.EPOD.API
             //app.UseAuthentication();
 
             app.UseAuthorization();
+
+            app.UseCors("cors");
 
             app.MapControllers();
 

@@ -23,6 +23,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         List<UserWithRole> GetSearchedUser(string key, int Page);
         bool DownloadUsersExcell(DownloadUserModel downloadUser);
         Task<bool> UpdateUser(UserWithRole userWithRole);
+        List<UserWithRole> GetAllUsers(int Page);
         Task<bool> DeleteUser(UserWithRole userWithRole);
         #endregion
 

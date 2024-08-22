@@ -26,15 +26,35 @@ namespace AREML.EPOD.API.Controllers
         [HttpPost]
         public async Task<IActionResult> ForgotPassword(ForgotPassword forgotPassword)
         {
-            return Ok(await this._auth.ForgotPassword(forgotPassword));
+            try
+            {
+                return Ok(await this._auth.ForgotPassword(forgotPassword));
+            }
+            catch(Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [Authorize]
         [HttpPost]
-        public async Task<IActionResult> ChangePassword(ForgotPasswordOTP forgotPassword)
+        public async Task<IActionResult> ChangePassword(ChangePassword changePassword)
         {
-            return Ok(await this._auth.ChangePassword(forgotPassword));
+            var result = await this._auth.ChangePassword(changePassword);
+            return Ok(new {message = result});
         }
 
+        [HttpPost]
+        public async Task<IActionResult> PasswordResetSendSMSOTP(string username)
+        {
+            return Ok(await this._auth.PasswordResetSendSMSOTP(username));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ResetPasswordWithSMSOTP(AffrimativeOTPBody otpBody)
+        {
+            var result = await this._auth.ResetPasswordWithSMSOTP(otpBody);
+            return Ok(new { message = result });
+        }
     }
 }

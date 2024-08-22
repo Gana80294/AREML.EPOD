@@ -702,6 +702,70 @@ namespace AREML.EPOD.Data.Repositories
 
         }
 
+        public List<UserWithRole> GetAllUsers(int Page)
+        {
+            try
+            {
+                var noRecords = 20;
+                var SkipValue = (Page - 1) * noRecords;
+                var TakeValue = noRecords;
+                var result = (from tb in _ctx.Users
+                              join tb1 in _ctx.UserRoleMaps on tb.UserID equals tb1.UserID
+                              where tb.IsActive && tb1.IsActive == true
+                              orderby tb.CreatedOn
+                              select new
+                              {
+                                  tb.UserID,
+                                  tb.UserCode,
+                                  tb.UserName,
+                                  tb.Email,
+                                  tb.ContactNumber,
+                                  tb.Password,
+                                  tb.IsActive,
+                                  tb.CreatedOn,
+                                  tb.ModifiedOn,
+                                  tb1.RoleID,
+                                  tb.CustomerGroupCode
+                              }).Skip(SkipValue).Take(noRecords).ToList();
+
+                List<UserWithRole> UserWithRoleList = new List<UserWithRole>();
+
+                result.ForEach(record =>
+                {
+                    UserWithRoleList.Add(new UserWithRole()
+                    {
+                        UserID = record.UserID,
+                        UserCode = record.UserCode,
+                        UserName = record.UserName,
+                        OrganizationList = (from tb in _ctx.UserOrganizationMaps
+                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                                            where tb.UserID == record.UserID
+                                            select tb.OrganizationCode).ToList(),
+                        PlantList = (from tb in _ctx.UserPlantMaps
+                                     join tb1 in _ctx.Plants on tb.PlantCode equals tb1.PlantCode
+                                     where tb.UserID == record.UserID
+                                     select tb.PlantCode).ToList(),
+                        Email = record.Email,
+                        ContactNumber = record.ContactNumber,
+                        Password =_passwordEncryptor.Decrypt(record.Password, true),
+                        IsActive = record.IsActive,
+                        CreatedOn = record.CreatedOn,
+                        ModifiedOn = record.ModifiedOn,
+                        RoleID = record.RoleID,
+                        CustomerGroup = record.CustomerGroupCode,
+                        SLSgroups = _ctx.UserSalesGroupMaps.Where(k => k.UserID == record.UserID).Select(p => p.SGID).ToList()
+
+                    });
+
+                });
+                return UserWithRoleList;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
         public async Task<bool> DeleteUser(UserWithRole userWithRole)
         {
 
@@ -786,24 +850,24 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                //List<RoleWithApp> RoleWithAppList = new List<RoleWithApp>();
+                List<RoleWithApp> RoleWithAppList = new List<RoleWithApp>();
                 List<Role> RoleList = (from tb in _ctx.Roles
                                        where tb.IsActive
                                        select tb).ToList();
-                var roleWithAppList = _mapper.Map<List<RoleWithApp>>(RoleList);
-                //foreach (Role rol in RoleList)
-                //{
-                //    RoleWithAppList.Add(new RoleWithApp()
-                //    {
-                //        RoleID = rol.RoleID,
-                //        RoleName = rol.RoleName,
-                //        IsActive = rol.IsActive,
-                //        CreatedOn = rol.CreatedOn,
-                //        ModifiedOn = rol.ModifiedOn,
-                //        AppIDList = _ctx.RoleAppMaps.Where(x => x.RoleID == rol.RoleID && x.IsActive == true).Select(r => r.AppID).ToArray()
-                //    });
-                //}
-                return roleWithAppList;
+                //var roleWithAppList = _mapper.Map<List<RoleWithApp>>(RoleList);
+                foreach (Role rol in RoleList)
+                {
+                    RoleWithAppList.Add(new RoleWithApp()
+                    {
+                        RoleID = rol.RoleID,
+                        RoleName = rol.RoleName,
+                        IsActive = rol.IsActive,
+                        CreatedOn = rol.CreatedOn,
+                        ModifiedOn = rol.ModifiedOn,
+                        AppIDList = _ctx.RoleAppMaps.Where(x => x.RoleID == rol.RoleID && x.IsActive == true).Select(r => r.AppID).ToArray()
+                    });
+                }
+                return RoleWithAppList;
             }
             catch (Exception ex)
             {
@@ -2643,7 +2707,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChnagePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
+                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChangePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
 
                 if (sMSOTP != null)
                 {
