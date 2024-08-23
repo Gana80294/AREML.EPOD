@@ -17,7 +17,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<RPOD_LR_DETAIL>> GetLRDetailsByHeaderId(int headerId);
         Task<List<ReversePodDetails>> FilterReversePODDetails(ReversePodFilterClass filterClass);
         Task<AttachmentResponse> DownloadRPODDocuments(int attachmentId);
-        Task<HttpResponseMessage> DownloadRPODReport(ReversePodFilterClass filterClass);
+        Task<byte[]> DownloadRPODReport(ReversePodFilterClass filterClass);
         Task<bool> UpdateReversePodApprover(List<Guid> approvers);
         Task<ReversePodApprover> GetIsApprover(Guid UserId);
 

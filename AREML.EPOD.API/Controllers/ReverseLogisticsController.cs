@@ -48,11 +48,21 @@ namespace AREML.EPOD.API.Controllers
             return Ok(await this._reverseLogisticsRepository.DownloadRPODDocuments(attachmentId));
         }
 
+
         [HttpPost]
         public async Task<IActionResult> DownloadRPODReport(ReversePodFilterClass filterClass)
         {
-            return Ok(await this._reverseLogisticsRepository.DownloadRPODReport(filterClass));
+            var fileContent = await this._reverseLogisticsRepository.DownloadRPODReport(filterClass);
+
+            if (fileContent == null)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Reverse_POD_details_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
+
 
         [HttpPost]
         public async Task<IActionResult> UpdateReversePodApprover(List<Guid> approvers)

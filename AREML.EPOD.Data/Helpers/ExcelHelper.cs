@@ -90,9 +90,12 @@ namespace AREML.EPOD.Data.Helpers
         public ISheet CreateNPOIworksheet(List<P_INV_HEADER_DETAIL> reports, bool isCustomerdetails = true, IWorkbook workbook = null)
         {
             List<string> headings = new List<string>();
-            string[] initialHeadings = { "Organization", "Division", "Plant Code","Plant Name", "Invoice No",  "Reference No","Invoice Date", "Invoice Type", "Outbound Delivery","Outbound Delivery Date", "Customer", "Customer Name",
-                                        "Customer Destination","Customer Group Code", "Customer Group Desc", "Sector", "Forward Agent","LR Number","LR Date", "Vehicle No","Carrier", "Vehicle Capacity", "E-Way Bill No", "E-Way Bill Date","Freight Order",
-                                        "Freight Order Date","Proposed Delivery Date", "Vehicle Unloaded Date","Acknowledgement Date", "Acknowledgement Time", "Lead Time","Status","Driver Contact","Tracking Link",
+            string[] initialHeadings = { "Organization", "Division", "Plant Code","Plant Name", "Invoice No",  "Reference No","Invoice Date", "Invoice Type", "Outbound Delivery","Outbound Delivery Date",
+                                       "Customer", "Customer Name",
+                                        "Customer Destination","Customer Group Code", "Customer Group Desc", "Sector", "Forward Agent","LR Number","LR Date", "Vehicle No","Carrier", "Vehicle Capacity",
+                                       "E-Way Bill No", "E-Way Bill Date","Freight Order",
+                                        "Freight Order Date","Proposed Delivery Date", "Vehicle Unloaded Date","Acknowledgement Date", "Acknowledgement Time", "Lead Time","Status","Driver Contact",
+                                      "Tracking Link",
                                         "Total Travel Time", "Total Distance",  "Delivery Date","Delivery Time"
                                         };
             for (int i = 0; i < initialHeadings.Length; i++)
@@ -334,12 +337,33 @@ namespace AREML.EPOD.Data.Helpers
         public ISheet CreateNPOIWorksheet(List<ReversePodReportDto> reports, IWorkbook workbook = null)
         {
             List<string> headings = new List<string>();
-            string[] initialHeadings = { "DC Number", "DC Date", "Claim Type", "Customer", "Customer Name", "Plant", "Plant Name", "Material Code","Quantity","Handovered Quantity","Customer Pending Quantity," +
-                    "Received Quantity","DC Pending Quantity","Status","SLA Date","Pending Days","Remarks","Invoice Total Quantity","Invoice Billed Quantity","Invoice Balance Quantity"};
-            for (int i = 0; i < initialHeadings.Length; i++)
-            {
-                headings.Add(initialHeadings[i]);
-            }
+            //string[] initialHeadings = { "DC Number", "DC Date", "Claim Type", "Customer", "Customer Name", "Plant", "Plant Name", "Material Code","Quantity","Handovered Quantity","Customer Pending Quantity," +
+            //        "Received Quantity","DC Pending Quantity","Status","SLA Date","Pending Days","Remarks","Invoice Total Quantity","Invoice Billed Quantity","Invoice Balance Quantity"};
+            //for (int i = 0; i < initialHeadings.Length; i++)
+            //{
+            //    headings.Add(initialHeadings[i]);
+            //}
+
+            headings.Add("DC Number");
+            headings.Add("DC Date");
+            headings.Add("Claim Type");
+            headings.Add("Customer");
+            headings.Add("Customer Name");
+            headings.Add("Plant");
+            headings.Add("Plant Name");
+            headings.Add("Material Code");
+            headings.Add("Quantity");
+            headings.Add("Handovered Quantity");
+            headings.Add("Customer Pending Quantity");
+            headings.Add("Receieved Quantity");
+            headings.Add("Dc Pending Quantity");
+            headings.Add("Status");
+            headings.Add("SLA Date");
+            headings.Add("Pending Days");
+            headings.Add("Remarks");
+            headings.Add("Invoice Total Quantity");
+            headings.Add("Invoice Billed Quantity");
+            headings.Add("Invoice Balance Quantity");
 
 
             ISheet sheet = workbook.CreateSheet("Rpod details");
