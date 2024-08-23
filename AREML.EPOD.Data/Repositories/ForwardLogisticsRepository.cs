@@ -920,7 +920,7 @@ namespace AREML.EPOD.Data.Repositories
                             byte[] fileBytes = memoryStream.ToArray();
                             if (fileBytes.Length > 0)
                             {
-                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(FileName, fileBytes);
+                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(FileName, fileBytes);
                                 P_INV_HEADER_DETAIL header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.HEADER_ID == HeaderID);
 
                                 var plGrps = await _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToListAsync();

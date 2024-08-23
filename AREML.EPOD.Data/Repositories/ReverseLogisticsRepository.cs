@@ -452,7 +452,7 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
                                     try
@@ -599,7 +599,7 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
 
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
