@@ -409,16 +409,16 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public bool DownloadUsersExcell(DownloadUserModel downloadUser)
+        public async Task<byte[]> DownloadUsersExcell(DownloadUserModel downloadUser)
         {
             try
             {
-                var response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+                //var response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
                 bool isSlsgroup = downloadUser.isAmUser;
                 List<ExportUserModel> result;
                 if (isSlsgroup && downloadUser.SGID.Length > 0)
                 {
-                    result = (from tb in _ctx.Users
+                    result = await (from tb in _ctx.Users
                               join tb1 in _ctx.UserRoleMaps on tb.UserID equals tb1.UserID
                               join tb2 in _ctx.Roles on tb1.RoleID equals tb2.RoleID
                               join tb3 in _ctx.UserSalesGroupMaps on tb.UserID equals tb3.UserID
@@ -433,12 +433,12 @@ namespace AREML.EPOD.Data.Repositories
                                   RoleName = tb2.RoleName,
                                   isAmuser = tb2.RoleName.ToLower() == "amararaja user" ? true : false
 
-                              }).ToList();
+                              }).ToListAsync();
                 }
                 else if (isSlsgroup && downloadUser.SGID.Length == 0)
                 {
                     LogWriter.WriteToFile("No SLs count");
-                    result = (from tb in _ctx.Users
+                    result =await (from tb in _ctx.Users
                               join tb1 in _ctx.UserRoleMaps on tb.UserID equals tb1.UserID
                               join tb2 in _ctx.Roles on tb1.RoleID equals tb2.RoleID
 
@@ -453,11 +453,11 @@ namespace AREML.EPOD.Data.Repositories
                                   RoleName = tb2.RoleName,
                                   isAmuser = tb2.RoleName.ToLower() == "amararaja user" ? true : false
 
-                              }).ToList();
+                              }).ToListAsync();
                 }
                 else
                 {
-                    result = (from tb in _ctx.Users
+                    result = await (from tb in _ctx.Users
                               join tb1 in _ctx.UserRoleMaps on tb.UserID equals tb1.UserID
                               join tb2 in _ctx.Roles on tb1.RoleID equals tb2.RoleID
 
@@ -472,7 +472,7 @@ namespace AREML.EPOD.Data.Repositories
                                   RoleName = tb2.RoleName,
                                   isAmuser = tb2.RoleName.ToLower() == "amararaja user" ? true : false
 
-                              }).ToList();
+                              }).ToListAsync();
                 }
                 List<ExportUserModel> overAllusers = new List<ExportUserModel>();
                 LogWriter.WriteToFile(result.Count.ToString());
@@ -548,35 +548,44 @@ namespace AREML.EPOD.Data.Repositories
 
                     });
 
-
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(overAllusers, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"User details_{dtstr1}.xlsx";
-
-                    MemoryStream memory = new MemoryStream();
-
-
-                    workbook.Write(memory);
-
-                    byte[] fileByteArray = memory.ToArray();
-
-
-                    var statuscode = HttpStatusCode.OK;
-                    //response = Request.CreateResponse(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    //response.Content.Headers.ContentLength = contentLength;
-                    ContentDispositionHeaderValue contentDisposition = null;
-
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(overAllusers, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
 
-                    return true;
+                    //IWorkbook workbook = new XSSFWorkbook();
+                    //ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(overAllusers, workbook);
+                    //DateTime dt1 = DateTime.Today;
+                    //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                    //var FileNm = $"User details_{dtstr1}.xlsx";
+
+                    //MemoryStream memory = new MemoryStream();
+
+
+                    //workbook.Write(memory);
+
+                    //byte[] fileByteArray = memory.ToArray();
+
+
+                    //var statuscode = HttpStatusCode.OK;
+                    ////response = Request.CreateResponse(statuscode);
+                    //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                    //response.Content.Headers.Add("x-filename", FileNm);
+                    //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    ////response.Content.Headers.ContentLength = contentLength;
+                    //ContentDispositionHeaderValue contentDisposition = null;
+
+                    //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    //{
+                    //    response.Content.Headers.ContentDisposition = contentDisposition;
+                    //}
+
+                    //return true;
                 }
                 else
                 {                    

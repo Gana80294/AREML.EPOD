@@ -20,7 +20,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<Invoice_Header_View>> GetOpenAndSavedInvoiceDetailByUser(string UserCode);
         Task<List<Invoice_Header_View>> FilterInvoiceDetailByUser(FilterClass filterClass);
 
-        Task<HttpResponseMessage> DownloadInvoiceDetailByUser(FilterClass filterClass);
+        Task<byte[]> DownloadInvoiceDetailByUser(FilterClass filterClass);
         Task<List<Invoice_Header_View>> GetConfirmedInvoiceDetails(Guid UserID);
 
         Task<bool> ApproveSelectedInvoices(ApproverDetails approverDetails);
@@ -39,14 +39,14 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoicesByUserID(Guid UserID);
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoices();
         Task<List<InvoiceHeaderDetails>> FilterSavedInvoicesByUserID(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadSavedInvoicesByUserID(FilterClass filterClass);
+        Task<byte[]> DownloadSavedInvoicesByUserID(FilterClass filterClass);
         Task<List<P_INV_HEADER_DETAIL>> GetAllPartiallyConfirmedInvoices();
 
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoices(int CurrentPage, int Records, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);
 
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoices(FilterClass filterClass);
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoicesForAdmin(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadPartiallyConfirmedInvoices(FilterClass filterClass);
+        Task<byte[]> DownloadPartiallyConfirmedInvoices(FilterClass filterClass);
         Task<bool> UpdatePartiallyConfirmedInvoiceStatus(int HeaderID, string Status);
         Task<bool> UpdateVehicleUnloadedDateByLR(LRWithVehicleUnloaded request);
         Task<bool> UpdateLRDateByInvoiceNo(LRDateUpdate req);
@@ -54,7 +54,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<bool> SaveScrollNotification(ScrollNotification notification);
         Task<List<ScrollNotification>> GetScrollNotification();
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
-        Task<HttpResponseMessage> DowloandHistoryDocument(int id);
+        Task<byte[]> DowloandHistoryDocument(int id);
 
 
         #region Sales Return

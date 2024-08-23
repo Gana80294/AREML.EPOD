@@ -45,7 +45,15 @@ namespace AREML.EPOD.API.Controllers
         [HttpPost]
         public async Task<IActionResult> DownloadInvoiceDetailByUser(FilterClass filterClass)
         {
-            return Ok(await this._forwardRepository.DownloadInvoiceDetailByUser(filterClass));
+            var fileContent = await this._forwardRepository.DownloadInvoiceDetailByUser(filterClass);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Invoice_details_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpGet]
@@ -144,7 +152,15 @@ namespace AREML.EPOD.API.Controllers
         [HttpPost]
         public async Task<IActionResult> DownloadSavedInvoicesByUserID(FilterClass filterClass)
         {
-            return Ok(await _forwardRepository.DownloadSavedInvoicesByUserID(filterClass));
+            var fileContent = await this._forwardRepository.DownloadSavedInvoicesByUserID(filterClass);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Daved_Invoices_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpGet]
@@ -175,8 +191,18 @@ namespace AREML.EPOD.API.Controllers
         [HttpPost]
         public async Task<IActionResult> DownloadPartiallyConfirmedInvoices(FilterClass filterClass)
         {
-            return Ok(await this._forwardRepository.DownloadPartiallyConfirmedInvoices(filterClass));
+            var fileContent = await this._forwardRepository.DownloadPartiallyConfirmedInvoices(filterClass);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Partially_confirmed_Invoices_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
+
+
 
         [HttpGet]
         public async Task<IActionResult> UpdatePartiallyConfirmedInvoiceStatus(int HeaderID, string Status)
@@ -223,8 +249,19 @@ namespace AREML.EPOD.API.Controllers
         [HttpGet]
         public async Task<IActionResult> DowloandHistoryDocument(int id)
         {
-            return Ok(await this._forwardRepository.DowloandHistoryDocument(id));
+            var fileContent = await this._forwardRepository.DowloandHistoryDocument(id);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Document_history_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
+
+
+
 
         #region Sales Return
 

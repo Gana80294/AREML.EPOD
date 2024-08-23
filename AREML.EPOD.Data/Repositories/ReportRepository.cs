@@ -608,9 +608,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null)
+        public async Task<byte[]> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateTempFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -709,35 +709,46 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME
                                     }).OrderBy(x => x.INV_NO).ToListAsync();
 
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Invoice details_{dtstr1}.xlsx";
-                var FilePath = Path.Combine(TempFolder, FileNm);
-                if (System.IO.File.Exists(FilePath))
-                {
-                    System.GC.Collect();
-                    System.GC.WaitForPendingFinalizers();
-                    System.IO.File.Delete(FilePath);
-                }
-                FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
 
-                workbook.Write(stream);
-                byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
-                var statuscode = HttpStatusCode.OK;
-                response = new HttpResponseMessage(statuscode);
-                response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
-
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
 
-                return response;
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"Invoice details_{dtstr1}.xlsx";
+                //var FilePath = Path.Combine(TempFolder, FileNm);
+                //if (System.IO.File.Exists(FilePath))
+                //{
+                //    System.GC.Collect();
+                //    System.GC.WaitForPendingFinalizers();
+                //    System.IO.File.Delete(FilePath);
+                //}
+                //FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
+
+                //workbook.Write(stream);
+                //byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
+                //var statuscode = HttpStatusCode.OK;
+                //response = new HttpResponseMessage(statuscode);
+                //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                //response.Content.Headers.Add("x-filename", FileNm);
+                //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                //ContentDispositionHeaderValue contentDisposition = null;
+
+                //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                //{
+                //    response.Content.Headers.ContentDisposition = contentDisposition;
+                //}
+
+                //return response;
             }
             catch (Exception ex)
             {
@@ -745,9 +756,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetails(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetails(FilterClass filterClass)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateTempFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -902,28 +913,36 @@ namespace AREML.EPOD.Data.Repositories
                             header.SECTOR_DESCRIPTION = sector.Sector;
                         }
                     }
-
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                    MemoryStream stream = new MemoryStream();
-                    workbook.Write(stream);
-                    byte[] fileByteArray = stream.ToArray();
-                    var statuscode = HttpStatusCode.OK;
-                    response = new HttpResponseMessage(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    ContentDispositionHeaderValue contentDisposition = null;
-
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
+                    //IWorkbook workbook = new XSSFWorkbook();
+                    //ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                    //DateTime dt1 = DateTime.Today;
+                    //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                    //var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
+                    //MemoryStream stream = new MemoryStream();
+                    //workbook.Write(stream);
+                    //byte[] fileByteArray = stream.ToArray();
+                    //var statuscode = HttpStatusCode.OK;
+                    //response = new HttpResponseMessage(statuscode);
+                    //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                    //response.Content.Headers.Add("x-filename", FileNm);
+                    //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    //ContentDispositionHeaderValue contentDisposition = null;
 
-                    return response;
+                    //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    //{
+                    //    response.Content.Headers.ContentDisposition = contentDisposition;
+                    //}
+
+                    //return response;
                 }
                 else
                 {
@@ -1042,27 +1061,38 @@ namespace AREML.EPOD.Data.Repositories
                             header.SECTOR_DESCRIPTION = sector.Sector;
                         }
                     }
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                    MemoryStream stream = new MemoryStream();
-                    workbook.Write(stream);
-                    byte[] fileByteArray = stream.ToArray();
-                    var statuscode = HttpStatusCode.OK;
-                    response = new HttpResponseMessage(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    ContentDispositionHeaderValue contentDisposition = null;
 
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
 
-                    return response;
+                    //IWorkbook workbook = new XSSFWorkbook();
+                    //ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                    //DateTime dt1 = DateTime.Today;
+                    //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                    //var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
+                    //MemoryStream stream = new MemoryStream();
+                    //workbook.Write(stream);
+                    //byte[] fileByteArray = stream.ToArray();
+                    //var statuscode = HttpStatusCode.OK;
+                    //response = new HttpResponseMessage(statuscode);
+                    //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                    //response.Content.Headers.Add("x-filename", FileNm);
+                    //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    //ContentDispositionHeaderValue contentDisposition = null;
+
+                    //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    //{
+                    //    response.Content.Headers.ContentDisposition = contentDisposition;
+                    //}
+
+                    //return response;
                 }
             }
             catch (Exception ex)
@@ -1071,9 +1101,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetailsForAutomation(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetailsForAutomation(FilterClass filterClass)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateReportsFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -1149,26 +1179,36 @@ namespace AREML.EPOD.Data.Repositories
                                   DELIVERY_TIME = tb.DELIVERY_TIME
                               }).OrderBy(x => x.INV_NO).ToListAsync();
 
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheetForAutomation(result, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                MemoryStream stream = new MemoryStream();
-                workbook.Write(stream);
-                byte[] fileByteArray = stream.ToArray();
-                var statuscode = HttpStatusCode.OK;
-                response = new HttpResponseMessage(statuscode);
-                response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
-
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheetForAutomation(result, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
-                return response;
+
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = _excelHelper.CreateNPOIworksheetForAutomation(result, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
+                //MemoryStream stream = new MemoryStream();
+                //workbook.Write(stream);
+                //byte[] fileByteArray = stream.ToArray();
+                //var statuscode = HttpStatusCode.OK;
+                //response = new HttpResponseMessage(statuscode);
+                //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                //response.Content.Headers.Add("x-filename", FileNm);
+                //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                //ContentDispositionHeaderValue contentDisposition = null;
+
+                //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                //{
+                //    response.Content.Headers.ContentDisposition = contentDisposition;
+                //}
+                //return response;
             }
             catch (Exception ex)
             {

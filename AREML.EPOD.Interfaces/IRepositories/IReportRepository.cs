@@ -16,10 +16,10 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<ReportInvoice>> GetFilteredInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);
         Task<List<ReportInvoice>> GetFilteredInvoiceDetails(Guid UserID, int CurrentPage, int Records, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null, string CustomerGroup = null);
         Task<List<ReportInvoice>> GetFilteredInvoiceDetails(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);
+        Task<byte[]> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);
 
-        Task<HttpResponseMessage> DownloadInvoiceDetails(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadInvoiceDetailsForAutomation(FilterClass filterClass);
+        Task<byte[]> DownloadInvoiceDetails(FilterClass filterClass);
+        Task<byte[]> DownloadInvoiceDetailsForAutomation(FilterClass filterClass);
 
         Task<HttpResponseMessage> DowloandPODDocument(int HeaderID, int AttachmentID);
     }

@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities.Logs;
+﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Interfaces.IRepositories;
@@ -88,9 +89,17 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpPost]
-        public IActionResult DownloadUsersExcell(DownloadUserModel downloadUser)
+        public async Task<IActionResult> DownloadUsersExcell(DownloadUserModel downloadUser)
         {
-            return Ok(_masterRepository.DownloadUsersExcell(downloadUser));
+            var fileContent = await this._masterRepository.DownloadUsersExcell(downloadUser);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Users_Excel_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpPost]

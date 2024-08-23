@@ -243,9 +243,9 @@ namespace AREML.EPOD.Data.Repositories
         }
 
 
-        public async Task<HttpResponseMessage> DownloadRPODReport(ReversePodFilterClass filterClass)
+        public async Task<byte[]> DownloadRPODReport(ReversePodFilterClass filterClass)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateTempFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -302,30 +302,39 @@ namespace AREML.EPOD.Data.Repositories
                                         REMARKS = tb1.REMARKS
                                     }).ToListAsync();
 
-
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIWorksheet(result, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Reverse POD details_{dtstr1}.xlsx";
-
-                MemoryStream stream = new MemoryStream();
-
-                workbook.Write(stream);
-                byte[] fileByteArray = stream.ToArray();
-
-                var statuscode = HttpStatusCode.OK;
-                response = new HttpResponseMessage(statuscode);
-                response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
-
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIWorksheet(result, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
-                return response;
+
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = _excelHelper.CreateNPOIWorksheet(result, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"Reverse POD details_{dtstr1}.xlsx";
+
+                //MemoryStream stream = new MemoryStream();
+
+                //workbook.Write(stream);
+                //byte[] fileByteArray = stream.ToArray();
+
+                //var statuscode = HttpStatusCode.OK;
+                //response = new HttpResponseMessage(statuscode);
+                //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                //response.Content.Headers.Add("x-filename", FileNm);
+                //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                //ContentDispositionHeaderValue contentDisposition = null;
+
+                //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                //{
+                //    response.Content.Headers.ContentDisposition = contentDisposition;
+                //}
+                //return response;
 
             }
             catch (Exception ex)
@@ -452,8 +461,8 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
-                                    fileName = convertedAttachment.Filename;
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
+                                    fileName = convertedAttachment.Filename;    
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
                                     try
                                     {
@@ -599,7 +608,7 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
 
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
@@ -721,25 +730,57 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<bool> ReUploadReversePodLr(int id,string file)
+        public async Task<bool> ReUploadReversePodLr(int id, IFormFile file)
         {
-            try
+            string path = _appSetting.ReverseAttachmentsPath;
+            using (var transaction = await _dbContext.Database.BeginTransactionAsync())
             {
-                var res = await _dbContext.RPOD_LR_ATTACHMENTS.FirstOrDefaultAsync(x => x.RPOD_HEADER_ID == id);
-                if (res != null)
+                try
                 {
-                    res.FileName = file;
-                    _dbContext.RPOD_LR_ATTACHMENTS.Update(res);
-                    _dbContext.SaveChanges();
+                    var attachment = await _dbContext.RPOD_LR_ATTACHMENTS.FirstOrDefaultAsync(x => x.RPOD_HEADER_ID == id);
+                    if (attachment == null)
+                    {
+                        throw new Exception("Attachment not found.");
+                    }
+                    if (file != null)
+                    {
+                        var fileName = attachment.FileName;
+                        byte[] fileBytes;
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            await file.CopyToAsync(memoryStream);
+                            fileBytes = memoryStream.ToArray();
+                        }
+                        var convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
+                        fileName = convertedAttachment.Filename;
+                        //var networkHelper = new NetworkFileHelper(configuration);
+                        var fullPath = Path.Combine(path, convertedAttachment.Filename);
+
+                        try
+                        {
+                            //networkHelper.SaveFile(fileName, convertedAttachment.PDFcontent, path);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new Exception("Error saving file to network share: " + ex.Message, ex);
+                        }
+                        attachment.FileName = convertedAttachment.Filename;
+                        attachment.FilePath = fullPath;
+                        attachment.IsDeleted = false;
+
+                        _dbContext.RPOD_LR_ATTACHMENTS.Update(attachment);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                    await transaction.CommitAsync();
+                    return true;
                 }
-                return true;
-            }
-            catch(Exception ex)
-            {
-                throw ex;
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw new Exception("Error re-uploading Reverse POD LR: " + ex.Message, ex);
+                }
             }
         }
-
 
 
         #region UnUsed Functions

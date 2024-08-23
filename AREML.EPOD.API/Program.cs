@@ -30,7 +30,7 @@ namespace AREML.EPOD.API
             builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
 
             builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext")));
-            
+
 
             // Add Configuration Settings
             builder.Services.Configure<JwtSetting>(builder.Configuration.GetSection("JWTSecurity"));
@@ -97,7 +97,7 @@ namespace AREML.EPOD.API
 
             app.UseHttpsRedirection();
 
-            app.UseMiddleware<AuthMiddleware>();
+            //app.UseMiddleware<AuthMiddleware>();
 
             //app.UseAuthentication();
 

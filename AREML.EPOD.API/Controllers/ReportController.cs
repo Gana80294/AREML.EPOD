@@ -46,20 +46,45 @@ namespace AREML.EPOD.API.Controllers
         [HttpGet]
         public async Task<IActionResult> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null)
         {
-            return Ok(await this._reportRepository.DownloadInvoiceDetails(UserID, Status, StartDate, EndDate, InvoiceNumber, Organization, Division, Plant, CustomerName));
+            var fileContent = await this._reportRepository.DownloadInvoiceDetails(UserID, Status, StartDate, EndDate, InvoiceNumber, Organization, Division, Plant, CustomerName);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Invoice_details_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpPost]
         public async Task<IActionResult> DownloadInvoiceDetails(FilterClass filterClass)
         {
-            return Ok(await this._reportRepository.DownloadInvoiceDetails(filterClass));
+            var fileContent = await this._reportRepository.DownloadInvoiceDetails(filterClass);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Invoice_details_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpPost]
         public async Task<IActionResult> DownloadInvoiceDetailsForAutomation(FilterClass filterClass)
         {
-            return Ok(await this._reportRepository.DownloadInvoiceDetailsForAutomation(filterClass));
+            var fileContent = await this._reportRepository.DownloadInvoiceDetailsForAutomation(filterClass);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Invoice_details_automation_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
+
 
         [HttpGet]
         public async Task<IActionResult> DowloandPODDocument(int HeaderID, int AttachmentID)
