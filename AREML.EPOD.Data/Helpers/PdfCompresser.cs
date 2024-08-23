@@ -13,6 +13,90 @@ namespace AREML.EPOD.Data.Helpers
 {
     public class PdfCompresser
     {
+
+        //public string convertFilenametoPDF(string name)
+        //{
+        //    return System.IO.Path.ChangeExtension(name, ".pdf");
+        //}
+
+        //public ConvertedAttachmentProps ConvertImagetoPdf(string filename, byte[] filebytes)
+        //{
+        //    var convertedAttachmentProps = new ConvertedAttachmentProps();
+        //    var spltfn = filename.Split('.');
+        //    var ext = spltfn[spltfn.Length - 1];
+
+        //    if (ext.ToLower() == "pdf")
+        //    {
+        //        convertedAttachmentProps.Filename = filename;
+        //        convertedAttachmentProps.PDFcontent = filebytes;
+        //        return convertedAttachmentProps;
+        //    }
+        //    using (var imageStream = new MemoryStream(filebytes))
+        //    {
+        //        var imageData = ImageDataFactory.Create(filebytes);
+        //        var image = new iText.Layout.Element.Image(imageData);
+        //        var pageSize = new PageSize(imageData.GetWidth(), imageData.GetHeight());
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            using (var pdfWriter = new PdfWriter(outputStream))
+        //            {
+        //                using (var pdfDocument = new PdfDocument(pdfWriter))
+        //                {
+        //                    var document = new Document(pdfDocument, pageSize);
+        //                    document.Add(image);
+        //                    document.Close();
+        //                }
+        //            }
+        //            convertedAttachmentProps.PDFcontent = outputStream.ToArray();
+        //            convertedAttachmentProps.Filename = convertFilenametoPDF(filename);
+        //        }
+        //    }
+        //    return convertedAttachmentProps;
+        //}
+
+        public byte[] MergePdf(List<byte[]> files)
+        {
+            try
+            {
+                using (var outputStream = new MemoryStream())
+                {
+                    using (var pdfWriter = new PdfWriter(outputStream))
+                    {
+                        using (var pdfDocument = new PdfDocument(pdfWriter))
+                        {
+                            var pdfMerger = new PdfMerger(pdfDocument);
+                            foreach (var file in files)
+                            {
+                                using (var pdfReader = new PdfReader(new MemoryStream(file)))
+                                using (var pdfSourceDocument = new PdfDocument(pdfReader))
+                                {
+                                    pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
+                                }
+                            }
+                        }
+                    }
+                    return outputStream.ToArray();
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        //private static byte[] CompressImage(byte[] fileBytes, int newQuality)
+        //{
+        //    using (var image = Image.Load(fileBytes))
+        //    {
+        //        var encoder = new JpegEncoder { Quality = newQuality };
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            image.Save(outputStream, encoder);
+        //            return outputStream.ToArray();
+        //        }
+        //    }
+        //}
+
         #region itext7
         public ConvertedAttachmentProps ConvertImagetoPDF(string filename, byte[] filebytes)
         {
@@ -110,89 +194,6 @@ namespace AREML.EPOD.Data.Helpers
         }
 
         #endregion
-
-        //public string convertFilenametoPDF(string name)
-        //{
-        //    return System.IO.Path.ChangeExtension(name, ".pdf");
-        //}
-
-        //public ConvertedAttachmentProps ConvertImagetoPdf(string filename, byte[] filebytes)
-        //{
-        //    var convertedAttachmentProps = new ConvertedAttachmentProps();
-        //    var spltfn = filename.Split('.');
-        //    var ext = spltfn[spltfn.Length - 1];
-
-        //    if (ext.ToLower() == "pdf")
-        //    {
-        //        convertedAttachmentProps.Filename = filename;
-        //        convertedAttachmentProps.PDFcontent = filebytes;
-        //        return convertedAttachmentProps;
-        //    }
-        //    using (var imageStream = new MemoryStream(filebytes))
-        //    {
-        //        var imageData = ImageDataFactory.Create(filebytes);
-        //        var image = new iText.Layout.Element.Image(imageData);
-        //        var pageSize = new PageSize(imageData.GetWidth(), imageData.GetHeight());
-        //        using (var outputStream = new MemoryStream())
-        //        {
-        //            using (var pdfWriter = new PdfWriter(outputStream))
-        //            {
-        //                using (var pdfDocument = new PdfDocument(pdfWriter))
-        //                {
-        //                    var document = new Document(pdfDocument, pageSize);
-        //                    document.Add(image);
-        //                    document.Close();
-        //                }
-        //            }
-        //            convertedAttachmentProps.PDFcontent = outputStream.ToArray();
-        //            convertedAttachmentProps.Filename = convertFilenametoPDF(filename);
-        //        }
-        //    }
-        //    return convertedAttachmentProps;
-        //}
-
-        //public byte[] MergePdf(List<byte[]> files)
-        //{
-        //    try
-        //    {
-        //        using (var outputStream = new MemoryStream())
-        //        {
-        //            using (var pdfWriter = new PdfWriter(outputStream))
-        //            {
-        //                using (var pdfDocument = new PdfDocument(pdfWriter))
-        //                {
-        //                    var pdfMerger = new PdfMerger(pdfDocument);
-        //                    foreach (var file in files)
-        //                    {
-        //                        using (var pdfReader = new PdfReader(new MemoryStream(file)))
-        //                        using (var pdfSourceDocument = new PdfDocument(pdfReader))
-        //                        {
-        //                            pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //            return outputStream.ToArray();
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw ex;
-        //    }
-        //}
-
-        //private static byte[] CompressImage(byte[] fileBytes, int newQuality)
-        //{
-        //    using (var image = Image.Load(fileBytes))
-        //    {
-        //        var encoder = new JpegEncoder { Quality = newQuality };
-        //        using (var outputStream = new MemoryStream())
-        //        {
-        //            image.Save(outputStream, encoder);
-        //            return outputStream.ToArray();
-        //        }
-        //    }
-        //}
 
 
 

@@ -462,7 +462,7 @@ namespace AREML.EPOD.Data.Repositories
                                 if (fileBytes.Length > 0)
                                 {
                                     ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
-                                    fileName = convertedAttachment.Filename;    
+                                    fileName = convertedAttachment.Filename;
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
                                     try
                                     {

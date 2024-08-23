@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Master;
 using System;
 using System.Collections.Generic;
@@ -27,7 +28,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
 
         Task<List<InvoiceHeaderDetails>> FilterInvoicesByUser(FilterClass filterClass);
 
-        Task<string> DowloandPODDocument(int HeaderID, int AttachmentID);
+        Task<AttachmentResponse> DownloadPODDocument(int HeaderID, int AttachmentID);
 
         Task<MobileVersion> GetMobileAppVersion();
         Task<MobileVersion> UpdateMobileVersion(string version);
