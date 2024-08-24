@@ -6,97 +6,197 @@ using iText.Kernel.Utils;
 using iText.Layout;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using System.Drawing.Imaging;
+using System.Drawing;
 
 namespace AREML.EPOD.Data.Helpers
 {
     public class PdfCompresser
     {
+        #region itext7-Harshini
 
-        public string convertFilenametoPDF(string name)
-        {
-            return System.IO.Path.ChangeExtension(name, ".pdf");
-        }
+        //public string convertFilenametoPDF(string name)
+        //{
+        //    return System.IO.Path.ChangeExtension(name, ".pdf");
+        //}
 
-        public ConvertedAttachmentProps ConvertImagetoPdf(string filename, byte[] filebytes)
+        //public ConvertedAttachmentProps ConvertImagetoPdf(string filename, byte[] filebytes)
+        //{
+        //    var convertedAttachmentProps = new ConvertedAttachmentProps();
+        //    var spltfn = filename.Split('.');
+        //    var ext = spltfn[spltfn.Length - 1];
+
+        //    if (ext.ToLower() == "pdf")
+        //    {
+        //        convertedAttachmentProps.Filename = filename;
+        //        convertedAttachmentProps.PDFcontent = filebytes;
+        //        return convertedAttachmentProps;
+        //    }
+        //    using (var imageStream = new MemoryStream(filebytes))
+        //    {
+        //        var imageData = ImageDataFactory.Create(filebytes);
+        //        var image = new iText.Layout.Element.Image(imageData);
+        //        var pageSize = new PageSize(imageData.GetWidth(), imageData.GetHeight());
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            using (var pdfWriter = new PdfWriter(outputStream))
+        //            {
+        //                using (var pdfDocument = new PdfDocument(pdfWriter))
+        //                {
+        //                    var document = new Document(pdfDocument, pageSize);
+        //                    document.Add(image);
+        //                    document.Close();
+        //                }
+        //            }
+        //            convertedAttachmentProps.PDFcontent = outputStream.ToArray();
+        //            convertedAttachmentProps.Filename = convertFilenametoPDF(filename);
+        //        }
+        //    }
+        //    return convertedAttachmentProps;
+        //}
+
+        //public byte[] MergePdf(List<byte[]> files)
+        //{
+        //    try
+        //    {
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            using (var pdfWriter = new PdfWriter(outputStream))
+        //            {
+        //                using (var pdfDocument = new PdfDocument(pdfWriter))
+        //                {
+        //                    var pdfMerger = new PdfMerger(pdfDocument);
+        //                    foreach (var file in files)
+        //                    {
+        //                        using (var pdfReader = new PdfReader(new MemoryStream(file)))
+        //                        using (var pdfSourceDocument = new PdfDocument(pdfReader))
+        //                        {
+        //                            pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //            return outputStream.ToArray();
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw ex;
+        //    }
+        //}
+
+        //private static byte[] CompressImage(byte[] fileBytes, int newQuality)
+        //{
+        //    using (var image = Image.Load(fileBytes))
+        //    {
+        //        var encoder = new JpegEncoder { Quality = newQuality };
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            image.Save(outputStream, encoder);
+        //            return outputStream.ToArray();
+        //        }
+        //    }
+        //}
+
+        #endregion
+
+        #region itext7
+        public ConvertedAttachmentProps ConvertImagetoPDF(string filename, byte[] filebytes)
         {
-            var convertedAttachmentProps = new ConvertedAttachmentProps();
+            ConvertedAttachmentProps convertedAttachmentProps = new ConvertedAttachmentProps();
             var spltfn = filename.Split('.');
             var ext = spltfn[spltfn.Length - 1];
-
             if (ext.ToLower() == "pdf")
             {
                 convertedAttachmentProps.Filename = filename;
                 convertedAttachmentProps.PDFcontent = filebytes;
+
                 return convertedAttachmentProps;
             }
-            using (var imageStream = new MemoryStream(filebytes))
+            else
             {
-                var imageData = ImageDataFactory.Create(filebytes);
-                var image = new iText.Layout.Element.Image(imageData);
-                var pageSize = new PageSize(imageData.GetWidth(), imageData.GetHeight());
-                using (var outputStream = new MemoryStream())
+                var fileSize = filebytes.Length / (1024 * 1024);
+                if (fileSize < 1)
                 {
-                    using (var pdfWriter = new PdfWriter(outputStream))
+                    using (var ms = new MemoryStream())
                     {
-                        using (var pdfDocument = new PdfDocument(pdfWriter))
+                        using (var pdfWriter = new iText.Kernel.Pdf.PdfWriter(ms))
+                        using (var pdfDocument = new iText.Kernel.Pdf.PdfDocument(pdfWriter))
                         {
-                            var document = new Document(pdfDocument, pageSize);
-                            document.Add(image);
-                            document.Close();
-                        }
-                    }
-                    convertedAttachmentProps.PDFcontent = outputStream.ToArray();
-                    convertedAttachmentProps.Filename = convertFilenametoPDF(filename);
-                }
-            }
-            return convertedAttachmentProps;
-        }
-
-        public byte[] MergePdf(List<byte[]> files)
-        {
-            try
-            {
-                using (var outputStream = new MemoryStream())
-                {
-                    using (var pdfWriter = new PdfWriter(outputStream))
-                    {
-                        using (var pdfDocument = new PdfDocument(pdfWriter))
-                        {
-                            var pdfMerger = new PdfMerger(pdfDocument);
-                            foreach (var file in files)
+                            using (var document = new iText.Layout.Document(pdfDocument))
                             {
-                                using (var pdfReader = new PdfReader(new MemoryStream(file)))
-                                using (var pdfSourceDocument = new PdfDocument(pdfReader))
-                                {
-                                    pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
-                                }
+                                var imageData = iText.IO.Image.ImageDataFactory.Create(filebytes);
+                                var image = new iText.Layout.Element.Image(imageData);
+                                pdfDocument.SetDefaultPageSize(new iText.Kernel.Geom.PageSize(image.GetImageWidth(), image.GetImageHeight()));
+                                document.Add(image);
                             }
                         }
+                        convertedAttachmentProps.PDFcontent = ms.ToArray();
+                        convertedAttachmentProps.Filename = ConvertFilenametoPDF(filename);
                     }
-                    return outputStream.ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
 
-        private static byte[] CompressImage(byte[] fileBytes, int newQuality)
-        {
-            using (var image = Image.Load(fileBytes))
-            {
-                var encoder = new JpegEncoder { Quality = newQuality };
-                using (var outputStream = new MemoryStream())
+                    return convertedAttachmentProps;
+                }
+                else
                 {
-                    image.Save(outputStream, encoder);
-                    return outputStream.ToArray();
+                    using (var ms = new MemoryStream())
+                    {
+                        using (var pdfWriter = new iText.Kernel.Pdf.PdfWriter(ms))
+                        using (var pdfDocument = new iText.Kernel.Pdf.PdfDocument(pdfWriter))
+                        {
+                            using (var document = new iText.Layout.Document(pdfDocument))
+                            {
+                                var imageData = iText.IO.Image.ImageDataFactory.Create(CompressImage(filebytes, 15));
+                                var image = new iText.Layout.Element.Image(imageData);
+                                pdfDocument.SetDefaultPageSize(new iText.Kernel.Geom.PageSize(image.GetImageWidth(), image.GetImageHeight()));
+                                image.SetFixedPosition(0, 0);
+                                image.ScaleAbsolute(pdfDocument.GetDefaultPageSize().GetWidth(), pdfDocument.GetDefaultPageSize().GetHeight());
+                                document.Add(image);
+                            }
+                        }
+                        convertedAttachmentProps.PDFcontent = ms.ToArray();
+                        convertedAttachmentProps.Filename = ConvertFilenametoPDF(filename);
+                    }
+
+                    return convertedAttachmentProps;
                 }
             }
         }
 
+        public string ConvertFilenametoPDF(string name)
+        {
+            return System.IO.Path.ChangeExtension(name, ".pdf");
+        }
 
+        private static byte[] CompressImage(byte[] filebytes, int newQuality)
+        {
+            using (var image = System.Drawing.Image.FromStream(new MemoryStream(filebytes)))
+            using (var memImage = new Bitmap(image, image.Width, image.Height))
+            {
+                ImageCodecInfo myImageCodecInfo = GetEncoderInfo("image/jpeg");
+                Encoder myEncoder = System.Drawing.Imaging.Encoder.Quality;
+                EncoderParameters myEncoderParameters = new EncoderParameters(1);
+                EncoderParameter myEncoderParameter = new EncoderParameter(myEncoder, newQuality);
+                myEncoderParameters.Param[0] = myEncoderParameter;
 
+                using (var ms = new MemoryStream())
+                {
+                    memImage.Save(ms, myImageCodecInfo, myEncoderParameters);
+                    return ms.ToArray();
+                }
+            }
+        }
+
+        private static ImageCodecInfo GetEncoderInfo(String mimeType)
+        {
+            ImageCodecInfo[] encoders = ImageCodecInfo.GetImageEncoders();
+            foreach (ImageCodecInfo ici in encoders)
+                if (ici.MimeType == mimeType) return ici;
+
+            return null;
+        }
+
+        #endregion
 
         #region Unused
 

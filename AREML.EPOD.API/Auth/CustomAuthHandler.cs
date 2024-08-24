@@ -26,7 +26,6 @@ namespace AREML.EPOD.API.Auth
                 {
                     RequireExpirationTime = true,
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(1),
                     RequireSignedTokens = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = signingKey,
@@ -55,31 +54,14 @@ namespace AREML.EPOD.API.Auth
 
 
                 var role = jwtTokenObj.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)!.Value;
-                if (role != "Vendor")
+                var userId = jwtTokenObj.Claims.FirstOrDefault(c => c.Type == "UserId")!.Value;
+
+                if (!string.IsNullOrWhiteSpace(userId) && !string.IsNullOrWhiteSpace(role))
                 {
-                    string userCode = jwtTokenObj.Claims.FirstOrDefault(c => c.Type == "UserCode")!.Value;
-                    if (!string.IsNullOrWhiteSpace(userCode) && !string.IsNullOrWhiteSpace(role))
-                    {
-                        var user = this._dbContext.Users.FirstOrDefault(x => x.UserCode == userCode);
-                        if (user != null) { return true; }
-                    }
-                    throw new UnauthorizedAccessException();
+                    var user = this._dbContext.Users.FirstOrDefault(x => x.UserID.ToString() == userId && x.IsActive && !x.IsLocked);
+                    if (user != null) { return true; }
                 }
-                else
-                {
-                    string vendorCode = jwtTokenObj.Claims.FirstOrDefault(c => c.Type == "VendorCode")!.Value;
-                    if (!string.IsNullOrWhiteSpace(vendorCode) && !string.IsNullOrWhiteSpace(role))
-                    {
-                        if (vendorCode == "not_registered")
-                        {
-                            return true;
-                        }
-                        var user = this._dbContext.Users.FirstOrDefault(x => x.UserCode == vendorCode);
-                        if (user != null) { return true; }
-                    }
-                    throw new UnauthorizedAccessException();
-                }
-                return true;
+                throw new UnauthorizedAccessException();
             }
             catch (Exception)
             {

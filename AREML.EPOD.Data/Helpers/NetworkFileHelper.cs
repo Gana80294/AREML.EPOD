@@ -1,11 +1,9 @@
 ﻿using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using System;
+using System.IO;
+using System.Security.Principal;
+
 
 namespace AREML.EPOD.Data.Helpers
 {
@@ -15,12 +13,12 @@ namespace AREML.EPOD.Data.Helpers
         private readonly string _username;
         private readonly string _password;
         private readonly string _domain;
-
+        private IntPtr _userHandle = IntPtr.Zero;
         public NetworkFileHelper(IConfiguration configuration)
         {
-            _username = configuration["NetworkCredentials:SharedFolderUserName"];
-            _password = configuration["NetworkCredentials:SharedFolderPassword"];
-            _domain = configuration["NetworkCredentials:SharedFolderDomain"];
+            _username = configuration["SharedFolderDetail:SharedFolderUserName"];
+            _password = configuration["SharedFolderDetail:SharedFolderPassword"];
+            _domain = configuration["SharedFolderDetail:SharedFolderDomain"];
         }
 
         [DllImport("mpr.dll")]

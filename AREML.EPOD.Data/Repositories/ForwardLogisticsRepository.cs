@@ -1,15 +1,19 @@
 ﻿using AREML.EPOD.Core.Configurations;
+using AREML.EPOD.Core.Dtos.ForwardLogistics;
+using AREML.EPOD.Core.Dtos.Response;
 using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Data.Helpers;
+using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using NPOI.HPSF;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System;
@@ -29,13 +33,19 @@ namespace AREML.EPOD.Data.Repositories
         private readonly ExcelHelper _excelHelper;
         private readonly PdfCompresser _pdfCompresser;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly NetworkFileHelper _networkFileHelper;
+        private readonly SharedFolderDetail _networkCredentials;
 
-        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser,IHttpContextAccessor httpContext)
+        #region Filter Functions
+        #endregion
+        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser, NetworkFileHelper networkFileHelper, IHttpContextAccessor httpContext)
         {
             this._dbContext = authContext;
             this._excelHelper = excel;
             _pdfCompresser = pdfCompresser;
+            _networkFileHelper = networkFileHelper;
             _httpContextAccessor = httpContext;
+            _networkCredentials = configuration.GetSection("SharedFolderDetail").Get<SharedFolderDetail>();
         }
 
         public async Task<List<Invoice_Header_View>> GetAllInvoiceDetails(Guid UserID)
@@ -135,7 +145,6 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-
         public async Task<List<Invoice_Header_View>> GetOpenAndSavedInvoiceDetailByUser(string UserCode)
         {
             try
@@ -212,7 +221,6 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-      
         public async Task<List<Invoice_Header_View>> FilterInvoiceDetailByUser(FilterClass filterClass)
         {
             try
@@ -425,30 +433,6 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
-
-        public void CreateTempFolder()
-        {
-            string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
-            if (!Directory.Exists(TempFolder))
-            {
-                Directory.CreateDirectory(TempFolder);
-            }
-            else
-            {
-                string[] files = Directory.GetFiles(TempFolder);
-                foreach (string file in files)
-                {
-                    FileInfo fi = new FileInfo(file);
-                    if (fi.CreationTime < DateTime.Now.AddMinutes(-30))
-                    {
-                        System.GC.Collect();
-                        System.GC.WaitForPendingFinalizers();
-                        fi.Delete();
-                    }
-                }
-            }
-        }
-
 
         public async Task<List<Invoice_Header_View>> GetConfirmedInvoiceDetails(Guid UserID)
         {
@@ -729,7 +713,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 try
                 {
-                    List<P_INV_ITEM_DETAIL> items =await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
+                    List<P_INV_ITEM_DETAIL> items = await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
 
                     foreach (P_INV_ITEM_DETAIL ite in items)
                     {
@@ -739,7 +723,7 @@ namespace AREML.EPOD.Data.Repositories
                             ite.STATUS = "Confirmed";
                         }
                     }
-                    P_INV_HEADER_DETAIL head =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
+                    P_INV_HEADER_DETAIL head = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
                     if (head != null)
                     {
                         if (head.INV_DATE.Value.Date <= invoiceUpdation.VEHICLE_REPORTED_DATE.Date)
@@ -920,7 +904,7 @@ namespace AREML.EPOD.Data.Repositories
                             byte[] fileBytes = memoryStream.ToArray();
                             if (fileBytes.Length > 0)
                             {
-                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(FileName, fileBytes);
+                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(FileName, fileBytes);
                                 P_INV_HEADER_DETAIL header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.HEADER_ID == HeaderID);
 
                                 var plGrps = await _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToListAsync();
@@ -1014,7 +998,6 @@ namespace AREML.EPOD.Data.Repositories
             }
             return true;
         }
-
 
         private async Task UpdateInvoiceStatus(int HeaderID, string Status)
         {
@@ -1522,7 +1505,6 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-
         public async Task<HttpResponseMessage> DownloadPartiallyConfirmedInvoices(FilterClass filterClass)
         {
             try
@@ -1595,7 +1577,6 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
-
 
         public async Task<bool> UpdatePartiallyConfirmedInvoiceStatus(int HeaderID, string Status)
         {
@@ -1724,7 +1705,7 @@ namespace AREML.EPOD.Data.Repositories
             var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(t => t.ODIN == invoiceNumber || t.INV_NO == invoiceNumber);
             if (header == null)
             {
-               throw new Exception("Invoice not found");
+                throw new Exception("Invoice not found");
             }
             else
             {
@@ -1733,7 +1714,7 @@ namespace AREML.EPOD.Data.Repositories
                     Id = doc.Id,
                     FileName = doc.FileName,
                     FileType = doc.FileType,
-                    CreatedBy =  (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
+                    CreatedBy = (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
                     CreatedOn = doc.CreatedOn
                 }).ToListAsync();
                 return documentHistories;
@@ -1768,12 +1749,348 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
+
+        #region SAP integration
+
+        public async Task<InsertInvoiceResponse> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail)
+        {
+            var response = new InsertInvoiceResponse();
+            response.Status = true;
+            using (var transaction = _dbContext.Database.BeginTransaction())
+            {
+                try
+                {
+                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 20)) + "INVOICE INSERT PROCESS STARTED" + String.Concat(Enumerable.Repeat("*", 20)));
+                    LogWriter.WriteProcessLog($"ForwardLogisticsRepository/InsertInvoiceDetails - Payload :- {JsonConvert.SerializeObject(insertInvoiceDetail)}");
+
+                    P_INV_HEADER_DETAIL invHeader = _dbContext.P_INV_HEADER_DETAIL.Where(x => x.INV_NO == insertInvoiceDetail.INV_NO &&
+                      x.CUSTOMER == insertInvoiceDetail.CUSTOMER && x.ODIN == insertInvoiceDetail.ODIN && x.IS_ACTIVE).FirstOrDefault();
+
+                    if (invHeader == null)
+                    {
+                        var header = CreateInvHeader(insertInvoiceDetail);
+                        await _dbContext.P_INV_HEADER_DETAIL.AddAsync(header);
+                        await _dbContext.SaveChangesAsync();
+                        var items = CreateInvoiceLineItem(header.HEADER_ID, insertInvoiceDetail.ITEM_LIST);
+                        await _dbContext.P_INV_ITEM_DETAIL.AddRangeAsync(items);
+                        await _dbContext.SaveChangesAsync();
+                        response.StatusMessage = $"Invoice No {header.INV_NO} is inserted";
+                    }
+                    else if (invHeader.STATUS == "Open")
+                    {
+                        UpdateInvHeader(invHeader, insertInvoiceDetail);
+                        await _dbContext.SaveChangesAsync();
+                        var olditems = _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invHeader.HEADER_ID).ToList();
+                        _dbContext.P_INV_ITEM_DETAIL.RemoveRange(olditems);
+                        await _dbContext.SaveChangesAsync();
+                        var items = CreateInvoiceLineItem(invHeader.HEADER_ID, insertInvoiceDetail.ITEM_LIST);
+                        await _dbContext.P_INV_ITEM_DETAIL.AddRangeAsync(items);
+                        await _dbContext.SaveChangesAsync();
+                        response.StatusMessage = $"Invoice No {invHeader.INV_NO} is updated";
+                    }
+
+                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 50)));
+                    return response;
+                }
+                catch (Exception ex)
+                {
+                    LogWriter.WriteProcessLog("ForwardLogisticsRepository/InsertInvoiceDetails/Exception", ex);
+                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 50)));
+                    response.Status = false;
+                    response.StatusMessage = ex.Message;
+                    await transaction.RollbackAsync();
+                    transaction.Dispose();
+                    return response;
+                }
+            }
+        }
+
+        private P_INV_HEADER_DETAIL CreateInvHeader(InsertInvoiceDetail insertInvoiceDetail)
+        {
+
+            P_INV_HEADER_DETAIL p_INV_HEADER_DETAIL = new P_INV_HEADER_DETAIL();
+            p_INV_HEADER_DETAIL.PLANT = insertInvoiceDetail.PLANT;
+            p_INV_HEADER_DETAIL.PLANT_NAME = insertInvoiceDetail.PLANT_NAME;
+            p_INV_HEADER_DETAIL.INV_NO = insertInvoiceDetail.INV_NO;
+            p_INV_HEADER_DETAIL.ODIN = insertInvoiceDetail.ODIN;
+            DateTime iDate;
+            if (DateTime.TryParse(insertInvoiceDetail.INV_DATE, out iDate))
+            {
+                p_INV_HEADER_DETAIL.INV_DATE = iDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.INV_DATE = (DateTime?)null;
+            }
+            p_INV_HEADER_DETAIL.INV_TYPE = insertInvoiceDetail.INV_TYPE;
+            p_INV_HEADER_DETAIL.CUSTOMER = insertInvoiceDetail.CUSTOMER;
+            p_INV_HEADER_DETAIL.CUSTOMER_NAME = insertInvoiceDetail.CUSTOMER_NAME;
+            p_INV_HEADER_DETAIL.ORGANIZATION = insertInvoiceDetail.ORGANIZATION;
+            p_INV_HEADER_DETAIL.DIVISION = insertInvoiceDetail.DIVISION;
+            p_INV_HEADER_DETAIL.VEHICLE_NO = insertInvoiceDetail.VEHICLE_NO;
+            p_INV_HEADER_DETAIL.VEHICLE_CAPACITY = insertInvoiceDetail.VEHICLE_CAPACITY;
+            p_INV_HEADER_DETAIL.EWAYBILL_NO = insertInvoiceDetail.EWAYBILL_NO;
+            DateTime eDate;
+            if (DateTime.TryParse(insertInvoiceDetail.EWAYBILL_DATE, out eDate))
+            {
+                p_INV_HEADER_DETAIL.EWAYBILL_DATE = eDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.EWAYBILL_DATE = (DateTime?)null;
+            }
+            p_INV_HEADER_DETAIL.LR_NO = insertInvoiceDetail.LR_NO;
+            DateTime lrDate;
+            if (DateTime.TryParse(insertInvoiceDetail.LR_DATE, out lrDate))
+            {
+                p_INV_HEADER_DETAIL.LR_DATE = lrDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.LR_DATE = (DateTime?)null;
+            }
+            p_INV_HEADER_DETAIL.FWD_AGENT = insertInvoiceDetail.FWD_AGENT;
+            p_INV_HEADER_DETAIL.CARRIER = insertInvoiceDetail.CARRIER;
+            p_INV_HEADER_DETAIL.FREIGHT_ORDER = insertInvoiceDetail.FREIGHT_ORDER;
+            DateTime frDate;
+            if (DateTime.TryParse(insertInvoiceDetail.FREIGHT_ORDER_DATE, out frDate))
+            {
+                p_INV_HEADER_DETAIL.FREIGHT_ORDER_DATE = frDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.FREIGHT_ORDER_DATE = (DateTime?)null;
+            }
+            p_INV_HEADER_DETAIL.OUTBOUND_DELIVERY = insertInvoiceDetail.OUTBOUND_DELIVERY;
+            DateTime oDate;
+            if (DateTime.TryParse(insertInvoiceDetail.OUTBOUND_DELIVERY_DATE, out oDate))
+            {
+                p_INV_HEADER_DETAIL.OUTBOUND_DELIVERY_DATE = oDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.OUTBOUND_DELIVERY_DATE = (DateTime?)null;
+            }
+            DateTime adDate;
+            if (DateTime.TryParse(insertInvoiceDetail.ACTUAL_DISPATCH_DATE, out adDate))
+            {
+                p_INV_HEADER_DETAIL.ACTUAL_DISPATCH_DATE = adDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.ACTUAL_DISPATCH_DATE = (DateTime?)null;
+            }
+            DateTime pDate;
+            if (DateTime.TryParse(insertInvoiceDetail.PROPOSED_DELIVERY_DATE, out pDate))
+            {
+                p_INV_HEADER_DETAIL.PROPOSED_DELIVERY_DATE = pDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.PROPOSED_DELIVERY_DATE = (DateTime?)null;
+            }
+            DateTime dDate;
+            if (DateTime.TryParse(insertInvoiceDetail.ACTUAL_DELIVERY_DATE, out dDate))
+            {
+                p_INV_HEADER_DETAIL.ACTUAL_DELIVERY_DATE = dDate;
+            }
+            else
+            {
+                p_INV_HEADER_DETAIL.ACTUAL_DELIVERY_DATE = (DateTime?)null;
+            }
+            p_INV_HEADER_DETAIL.TRANSIT_LEAD_TIME = insertInvoiceDetail.TRANSIT_LEAD_TIME;
+            p_INV_HEADER_DETAIL.DISTANCE = insertInvoiceDetail.DISTANCE;
+            p_INV_HEADER_DETAIL.CANC_INV_STATUS = insertInvoiceDetail.CANC_INV_STATUS;
+            p_INV_HEADER_DETAIL.STATUS = "Open";
+            p_INV_HEADER_DETAIL.STATUS_DESCRIPTION = "Invoice Details Inserted";
+            p_INV_HEADER_DETAIL.CREATED_BY = "Admin";
+            p_INV_HEADER_DETAIL.CREATED_ON = DateTime.Now;
+            p_INV_HEADER_DETAIL.IS_ACTIVE = true;
+            p_INV_HEADER_DETAIL.CUSTOMER_GROUP = insertInvoiceDetail.CUSTOMER_GROUP;
+            p_INV_HEADER_DETAIL.CUSTOMER_DESTINATION = insertInvoiceDetail.CUSTOMER_DESTINATION;
+            p_INV_HEADER_DETAIL.CUSTOMER_GROUP_DESC = insertInvoiceDetail.CUSTOMER_GROUP_DESC;
+            p_INV_HEADER_DETAIL.PLANT_CODE = insertInvoiceDetail.PLANT_CODE;
+            p_INV_HEADER_DETAIL.SECTOR_DESCRIPTION = insertInvoiceDetail.SECTOR_DESCRIPTION;
+            p_INV_HEADER_DETAIL.GROSS_WEIGHT = insertInvoiceDetail.GROSS_WEIGHT;
+            p_INV_HEADER_DETAIL.DRIVER_CONTACT = insertInvoiceDetail.DRIVER_CONTACT;
+
+            p_INV_HEADER_DETAIL.TRACKING_LINK = "";
+            p_INV_HEADER_DETAIL.TOTAL_TRAVEL_TIME = 0;
+            p_INV_HEADER_DETAIL.TOTAL_DISTANCE = 0;
+            p_INV_HEADER_DETAIL.DELIVERY_DATE = "";
+            p_INV_HEADER_DETAIL.DELIVERY_TIME = "";
+
+            return p_INV_HEADER_DETAIL;
+        }
+
+        private List<P_INV_ITEM_DETAIL> CreateInvoiceLineItem(int headerId, List<P_INV_ITEM_DETAIL> items)
+        {
+            items.ForEach(item =>
+                        {
+                            item.HEADER_ID = headerId;
+                            item.STATUS = "Open";
+                            item.STATUS_DESCRIPTION = "Item Inserted";
+                            item.IS_ACTIVE = true;
+                            item.CREATED_ON = DateTime.Now;
+                        });
+            return items;
+        }
+
+
+        private void UpdateInvHeader(P_INV_HEADER_DETAIL header, InsertInvoiceDetail insertInvoiceDetail)
+        {
+            header.PLANT = insertInvoiceDetail.PLANT;
+            header.PLANT_NAME = insertInvoiceDetail.PLANT_NAME;
+            header.INV_NO = insertInvoiceDetail.INV_NO;
+            header.ODIN = insertInvoiceDetail.ODIN;
+            DateTime iDate;
+            if (DateTime.TryParse(insertInvoiceDetail.INV_DATE, out iDate))
+            {
+                header.INV_DATE = iDate;
+            }
+            else
+            {
+                header.INV_DATE = (DateTime?)null;
+            }
+            header.INV_TYPE = insertInvoiceDetail.INV_TYPE;
+            header.CUSTOMER = insertInvoiceDetail.CUSTOMER;
+            header.CUSTOMER_NAME = insertInvoiceDetail.CUSTOMER_NAME;
+            header.ORGANIZATION = insertInvoiceDetail.ORGANIZATION;
+            header.DIVISION = insertInvoiceDetail.DIVISION;
+            header.VEHICLE_NO = insertInvoiceDetail.VEHICLE_NO;
+            header.VEHICLE_CAPACITY = insertInvoiceDetail.VEHICLE_CAPACITY;
+            header.EWAYBILL_NO = insertInvoiceDetail.EWAYBILL_NO;
+            DateTime eDate;
+            if (DateTime.TryParse(insertInvoiceDetail.EWAYBILL_DATE, out eDate))
+            {
+                header.EWAYBILL_DATE = eDate;
+            }
+            else
+            {
+                header.EWAYBILL_DATE = (DateTime?)null;
+            }
+            header.LR_NO = insertInvoiceDetail.LR_NO;
+            DateTime lrDate;
+            if (DateTime.TryParse(insertInvoiceDetail.LR_DATE, out lrDate))
+            {
+                header.LR_DATE = lrDate;
+            }
+            else
+            {
+                header.LR_DATE = (DateTime?)null;
+            }
+            header.FWD_AGENT = insertInvoiceDetail.FWD_AGENT;
+            header.CARRIER = insertInvoiceDetail.CARRIER;
+            header.FREIGHT_ORDER = insertInvoiceDetail.FREIGHT_ORDER;
+            DateTime frDate;
+            if (DateTime.TryParse(insertInvoiceDetail.FREIGHT_ORDER_DATE, out frDate))
+            {
+                header.FREIGHT_ORDER_DATE = frDate;
+            }
+            else
+            {
+                header.FREIGHT_ORDER_DATE = (DateTime?)null;
+            }
+            header.OUTBOUND_DELIVERY = insertInvoiceDetail.OUTBOUND_DELIVERY;
+            DateTime oDate;
+            if (DateTime.TryParse(insertInvoiceDetail.OUTBOUND_DELIVERY_DATE, out oDate))
+            {
+                header.OUTBOUND_DELIVERY_DATE = oDate;
+            }
+            else
+            {
+                header.OUTBOUND_DELIVERY_DATE = (DateTime?)null;
+            }
+            DateTime adDate;
+            if (DateTime.TryParse(insertInvoiceDetail.ACTUAL_DISPATCH_DATE, out adDate))
+            {
+                header.ACTUAL_DISPATCH_DATE = adDate;
+            }
+            else
+            {
+                header.ACTUAL_DISPATCH_DATE = (DateTime?)null;
+            }
+            DateTime pDate;
+            if (DateTime.TryParse(insertInvoiceDetail.PROPOSED_DELIVERY_DATE, out pDate))
+            {
+                header.PROPOSED_DELIVERY_DATE = pDate;
+            }
+            else
+            {
+                header.PROPOSED_DELIVERY_DATE = (DateTime?)null;
+            }
+            header.TRANSIT_LEAD_TIME = insertInvoiceDetail.TRANSIT_LEAD_TIME;
+            header.DISTANCE = insertInvoiceDetail.DISTANCE;
+            header.CANC_INV_STATUS = insertInvoiceDetail.CANC_INV_STATUS;
+            header.STATUS = "Open";
+            header.STATUS_DESCRIPTION = "Invoice Details Updated";
+            header.CREATED_BY = "Admin";
+            header.CREATED_ON = DateTime.Now;
+            header.IS_ACTIVE = true;
+            header.CUSTOMER_GROUP = insertInvoiceDetail.CUSTOMER_GROUP;
+            header.CUSTOMER_DESTINATION = insertInvoiceDetail.CUSTOMER_DESTINATION;
+            header.CUSTOMER_GROUP_DESC = insertInvoiceDetail.CUSTOMER_GROUP_DESC;
+            header.PLANT_CODE = insertInvoiceDetail.PLANT_CODE;
+            header.SECTOR_DESCRIPTION = insertInvoiceDetail.SECTOR_DESCRIPTION;
+            header.GROSS_WEIGHT = insertInvoiceDetail.GROSS_WEIGHT;
+            header.DRIVER_CONTACT = insertInvoiceDetail.DRIVER_CONTACT;
+
+            header.TRACKING_LINK = "";
+            header.TOTAL_TRAVEL_TIME = 0;
+            header.TOTAL_DISTANCE = 0;
+            header.DELIVERY_DATE = "";
+            header.DELIVERY_TIME = "";
+        }
+
+
+        #endregion
+
+
+        #region Acknowledgment
+
+        //public async Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes)
+        //{
+        //    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+        //    LogWriter.WriteProcessLog($"ForwardLogisticsRepository/ConfirmInvoice :- Paylod Details : {JsonConvert.SerializeObject(invoiceUpdate).ToString()}");
+        //    string fileName = $"{invoiceUpdate.HEADER_ID}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.pdf";
+        //    using (var transaction = this._dbContext.Database.BeginTransaction())
+        //    {
+        //        try
+        //        {
+        //            ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+        //            var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+        //            if (header != null)
+        //            {
+        //                var _networkPath = _networkCredentials.ReverseAttachmentsPath;
+        //                _networkFileHelper.SaveFile(fileName,fileBytes,_networkPath);
+
+        //            }
+        //            else
+        //            {
+        //                throw new Exception("Unable to find the invoice.");
+        //            }
+
+        //        }
+        //        catch (Exception)
+        //        {
+        //            transaction.Rollback();
+        //            transaction.Dispose();
+        //            LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+        //            throw;
+
+        //        }
+        //    }
+        //}
+
+        #endregion
+
+
         #region Sales Return
         public async Task<string> SalesReturns(SalesReturnProps salesReturnProps)
         {
             try
             {
-                P_INV_HEADER_DETAIL inv_header =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
+                P_INV_HEADER_DETAIL inv_header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
                 if (inv_header == null)
                 {
                     throw new Exception($"Invoice not found!!!");
@@ -1820,7 +2137,7 @@ namespace AREML.EPOD.Data.Repositories
                             throw new Exception($"PODConfirmation/SalesReturns: Material - {material.MaterialCode} Not Found!!!");
                         }
                     }
-                    var tCreditInvoices =await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
+                    var tCreditInvoices = await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
                     var slConfirmationList = new List<SalesReturnStatusConfirmation>();
                     foreach (var tCI in tCreditInvoices)
                     {
@@ -1853,20 +2170,20 @@ namespace AREML.EPOD.Data.Repositories
             try
             {
                 var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                              join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                              join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                              where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                              select new
-                              {
-                                  tb2.ITEM_ID,
-                                  tb.CRID,
-                                  tb2.MATERIAL_CODE,
-                                  tb2.QUANTITY,
-                                  tb2.RECEIVED_QUANTITY,
-                                  tb.CreditInvoice,
-                                  tb.Qty,
-                                  tb.IsActive
-                              }
+                                    join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                    join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                    where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                    select new
+                                    {
+                                        tb2.ITEM_ID,
+                                        tb.CRID,
+                                        tb2.MATERIAL_CODE,
+                                        tb2.QUANTITY,
+                                        tb2.RECEIVED_QUANTITY,
+                                        tb.CreditInvoice,
+                                        tb.Qty,
+                                        tb.IsActive
+                                    }
                               ).FirstOrDefaultAsync();
 
                 if (slslog != null)
@@ -1898,14 +2215,13 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
-
         public async Task<string> InvoiceCancellation(string Invoiceno)
         {
             try
             {
                 P_INV_HEADER_DETAIL result = await (from td in _dbContext.P_INV_HEADER_DETAIL
-                                              where td.INV_NO == Invoiceno && td.IS_ACTIVE
-                                              select td).FirstOrDefaultAsync();
+                                                    where td.INV_NO == Invoiceno && td.IS_ACTIVE
+                                                    select td).FirstOrDefaultAsync();
                 if (result != null)
                 {
                     result.IS_ACTIVE = false;
@@ -1915,27 +2231,27 @@ namespace AREML.EPOD.Data.Repositories
                 else
                 {
 
-                    var slslog =await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                                  join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                                  join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                                  where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                                  select new
-                                  {
-                                      tb1.HEADER_ID,
-                                      tb2.ITEM_ID,
-                                      tb.CRID,
-                                      tb2.MATERIAL_CODE,
-                                      tb2.QUANTITY,
-                                      tb2.RECEIVED_QUANTITY,
-                                      tb.CreditInvoice,
-                                      tb.Qty,
-                                      tb.IsActive
-                                  }
+                    var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
+                                        join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                        join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                        where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                        select new
+                                        {
+                                            tb1.HEADER_ID,
+                                            tb2.ITEM_ID,
+                                            tb.CRID,
+                                            tb2.MATERIAL_CODE,
+                                            tb2.QUANTITY,
+                                            tb2.RECEIVED_QUANTITY,
+                                            tb.CreditInvoice,
+                                            tb.Qty,
+                                            tb.IsActive
+                                        }
                               ).FirstOrDefaultAsync();
 
                     if (slslog != null)
                     {
-                        var itm =await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
+                        var itm = await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
                         var ls = itm.REMARKS.Split(',').ToList();
 
                         for (int i = 0; i < ls.Count; i++)
@@ -1974,6 +2290,32 @@ namespace AREML.EPOD.Data.Repositories
             }
 
         }
+        #endregion
+
+        #region Additional Functions
+        public void CreateTempFolder()
+        {
+            string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+            if (!Directory.Exists(TempFolder))
+            {
+                Directory.CreateDirectory(TempFolder);
+            }
+            else
+            {
+                string[] files = Directory.GetFiles(TempFolder);
+                foreach (string file in files)
+                {
+                    FileInfo fi = new FileInfo(file);
+                    if (fi.CreationTime < DateTime.Now.AddMinutes(-30))
+                    {
+                        System.GC.Collect();
+                        System.GC.WaitForPendingFinalizers();
+                        fi.Delete();
+                    }
+                }
+            }
+        }
+
         #endregion
     }
 }

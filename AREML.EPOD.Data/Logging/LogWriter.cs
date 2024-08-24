@@ -13,7 +13,7 @@ namespace AREML.EPOD.Data.Logging
             StreamWriter sw = null;
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LogFiles");
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ErrorFiles");
                 if (!Directory.Exists(path))
                 {
                     Directory.CreateDirectory(path);
@@ -23,18 +23,14 @@ namespace AREML.EPOD.Data.Logging
                 string yday = ystrdy.ToString("yyyyMMdd");
                 string today = dt.ToString("yyyyMMdd");
                 string Log = today + ".txt";
-                if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\LogFiles\\Log_" + yday + ".txt"))
+                if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\ErrorFiles\\Log_" + yday + ".txt"))
                 {
                     System.GC.Collect();
                     System.GC.WaitForPendingFinalizers();
-                    File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\LogFiles\\Log_" + yday + ".txt");
+                    File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\ErrorFiles\\Log_" + yday + ".txt");
                 }
-                sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\LogFiles\\Log_" + Log, true);
-                sw.WriteLine(string.Format(DateTime.Now.ToString()) + ":" + Message);
-                if (ex != null && ex.Message.Contains("inner exception") && ex.InnerException != null)
-                {
-                    sw.WriteLine($"{DateTime.Now.ToString()} : Inner :- {ex.InnerException.Message}");
-                }
+                sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\ErrorFiles\\Log_" + Log, true);
+                WriteExceptionMessageInStreamWriter(sw, Message, ex);
                 sw.Flush();
                 sw.Close();
             }
@@ -44,54 +40,6 @@ namespace AREML.EPOD.Data.Logging
             }
 
         }
-
-        public static void WriteProcessLog(string Message, Exception ex = null)
-        {
-            StreamWriter sw = null;
-            try
-            {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ProcessLogFiles");
-                if (!Directory.Exists(path))
-                {
-                    Directory.CreateDirectory(path);
-                }
-                DateTime dt = DateTime.Today;
-                DateTime ystrdy = DateTime.Today.AddDays(-60);//keep 15 days backup
-                string yday = ystrdy.ToString("yyyyMMdd");
-                string today = dt.ToString("yyyyMMdd");
-                string Log = today + ".txt";
-                if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + yday + ".txt"))
-                {
-                    System.GC.Collect();
-                    System.GC.WaitForPendingFinalizers();
-                    File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + yday + ".txt");
-                }
-                sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + Log, true);
-                sw.WriteLine(string.Format(DateTime.Now.ToString()) + ":" + Message);
-                WriteInnerExceptionDetails(sw, ex);
-                sw.Flush();
-                sw.Close();
-            }
-            catch
-            {
-
-            }
-
-        }
-        public static void WriteInnerExceptionDetails(StreamWriter sw, Exception ex)
-        {
-            if (ex != null && ex.Message.Contains("inner exception") && ex.InnerException != null)
-            {
-                sw.WriteLine($"{DateTime.Now.ToString()} : Inner :- {ex.InnerException.Message}");
-                WriteInnerExceptionDetails(sw, ex.InnerException);
-            }
-            else
-            {
-                return;
-            }
-        }
-
-
         public static void WriteToFile(Exception ex)
         {
             StreamWriter sw = null;
@@ -114,10 +62,41 @@ namespace AREML.EPOD.Data.Logging
                     File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\ErrorFiles\\Log_" + yday + ".txt");
                 }
                 sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\ErrorFiles\\Log_" + Log, true);
+                WriteExceptionMessageInStreamWriter(sw, null, ex);
+                sw.Flush();
+                sw.Close();
+            }
+            catch
+            {
+
+            }
+
+        }
+        public static void WriteProcessLog(string Message, Exception ex = null)
+        {
+            StreamWriter sw = null;
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "ProcessLogFiles");
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+                DateTime dt = DateTime.Today;
+                DateTime ystrdy = DateTime.Today.AddDays(-60);//keep 60 days backup
+                string yday = ystrdy.ToString("yyyyMMdd");
+                string today = dt.ToString("yyyyMMdd");
+                string Log = today + ".txt";
+                if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + yday + ".txt"))
+                {
+                    System.GC.Collect();
+                    System.GC.WaitForPendingFinalizers();
+                    File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + yday + ".txt");
+                }
+                sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\ProcessLogFiles\\Log_" + Log, true);
                 sw.WriteLine("***** " + DateTime.Now.ToString() + " *****");
-                sw.WriteLine(ex.StackTrace != null ? "Stack Trace : " + ex.StackTrace.ToString() : "Stack Trace : null");
-                sw.WriteLine("Excception : " + ex.Message.ToString().Trim());
-                sw.WriteLine(ex.InnerException != null ? "Inner Exception : " + ex.InnerException.Message.ToString().Trim() : "Inner Exception : null");
+                sw.WriteLine($"Message : {Message}");
+                if (ex != null) { WriteExceptionMessageInStreamWriter(sw, Message, ex); }
                 sw.WriteLine(String.Concat(Enumerable.Repeat("*", 25)));
                 sw.Flush();
                 sw.Close();
@@ -127,6 +106,24 @@ namespace AREML.EPOD.Data.Logging
 
             }
 
+        }
+        public static void WriteExceptionMessageInStreamWriter(StreamWriter sw, string message = null, Exception ex = null)
+        {
+            sw.WriteLine(String.Concat(Enumerable.Repeat("*", 10)) + DateTime.Now.ToString() + String.Concat(Enumerable.Repeat("*", 10)));
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                sw.WriteLine($"Message : {message}");
+            }
+            if (ex.StackTrace != null)
+            {
+                sw.WriteLine("Stack Trace : " + ex.StackTrace.ToString());
+            }
+            sw.WriteLine("Excception : " + ex.Message.ToString().Trim());
+            if (ex.InnerException != null && ex.Message.Contains("inner exception"))
+            {
+                sw.WriteLine("Inner Exception : " + ex.InnerException.Message.ToString().Trim());
+            }
+            sw.WriteLine(String.Concat(Enumerable.Repeat("*", 25)));
         }
     }
 }

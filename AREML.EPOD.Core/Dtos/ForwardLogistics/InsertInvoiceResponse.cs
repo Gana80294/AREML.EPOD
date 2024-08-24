@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AREML.EPOD.Core.Entities.ForwardLogistics
+namespace AREML.EPOD.Core.Dtos.ForwardLogistics
 {
     public class InsertInvoiceResponse
     {
