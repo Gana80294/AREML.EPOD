@@ -81,6 +81,7 @@ namespace AREML.EPOD.API
             builder.Services.AddSingleton<PasswordEncryptor>();
             builder.Services.AddSingleton<ExcelHelper>();
             builder.Services.AddSingleton<PdfCompresser>();
+            builder.Services.AddSingleton<NetworkFileHelper>();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddSingleton<MasterProfile>();
 

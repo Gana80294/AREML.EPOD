@@ -139,20 +139,9 @@ namespace AREML.EPOD.Data.Repositories
                 new Claim(ClaimTypes.Name, authenticationResponse.UserName),
                 new Claim(ClaimTypes.Role, authenticationResponse.Role)
             };
-            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Admin")
-            {
-                claims.Add(new Claim("RoleId", authenticationResponse.Role_Id.ToString()));
-            }
 
-            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Amararaja User")
-            {
-                claims.Add(new Claim("RoleId", authenticationResponse.Role_Id.ToString()));
-            }
-
-            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Customer")
-            {
-                claims.Add(new Claim("UserId", authenticationResponse.UserID.ToString()));
-            }
+            claims.Add(new Claim("UserId", authenticationResponse.UserID.ToString()));
+            claims.Add(new Claim("RoleId", authenticationResponse.Role_Id.ToString()));
 
             var token = new JwtSecurityToken(
                                 issuer: issuer,
@@ -289,11 +278,11 @@ namespace AREML.EPOD.Data.Repositories
                 OTPResponseBody otpResponse = new OTPResponseBody();
                 try
                 {
-                    User user = await _dbContext.Users.FirstOrDefaultAsync(x => x.UserName == username || x.UserCode == username);
+                    User user = await _dbContext.Users.FirstOrDefaultAsync(x => (x.UserName == username || x.UserCode == username) && x.IsActive);
                     if (user == null)
-                        throw new Exception("No user exists.");
+                        throw new Exception("Unable to find any account with this user name.");
                     if (user.IsLocked)
-                        throw new Exception("User account is locked.");
+                        throw new Exception("User account is locked. Please contact Admin.");
 
                     //send otp
                     var response = await _otp.SendOTPAsync(user);
@@ -357,7 +346,7 @@ namespace AREML.EPOD.Data.Repositories
                 await _dbContext.SaveChangesAsync();
                 return "Password updated successfully.";
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 LogWriter.WriteToFile("AuthRepo/ResetPasswordWithSMSOTP/Exception :- ", ex);
                 throw ex;

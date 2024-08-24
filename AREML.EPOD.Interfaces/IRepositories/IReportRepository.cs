@@ -21,6 +21,6 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<byte[]> DownloadInvoiceDetails(FilterClass filterClass);
         Task<byte[]> DownloadInvoiceDetailsForAutomation(FilterClass filterClass);
 
-        Task<HttpResponseMessage> DowloandPODDocument(int HeaderID, int AttachmentID);
+        Task<HttpResponseMessage> DowloadPODDocument(int HeaderID, int AttachmentID);
     }
 }

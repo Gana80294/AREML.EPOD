@@ -21,7 +21,8 @@ namespace AREML.EPOD.API.Auth
         {
             var path = httpContext.Request.Path;
             var endPoint = path.Value!.ToString().ToLower();
-            if (endPoint.Contains("authenticateuser"))
+            if (endPoint.Contains("authenticateuser") ||
+                endPoint.Contains("authenticateuser"))
             {
                 await _next(httpContext);
             }

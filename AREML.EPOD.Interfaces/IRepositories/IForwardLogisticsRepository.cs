@@ -1,4 +1,6 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.ForwardLogistics;
+using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using Microsoft.AspNetCore.Http;
@@ -56,6 +58,13 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
         Task<byte[]> DowloandHistoryDocument(int id);
 
+        #region SAP integration
+        Task<InsertInvoiceResponse> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail);
+        #endregion
+
+        #region Acknowledgement
+        //Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
+        #endregion
 
         #region Sales Return
         Task<string> SalesReturns(SalesReturnProps salesReturnProps);

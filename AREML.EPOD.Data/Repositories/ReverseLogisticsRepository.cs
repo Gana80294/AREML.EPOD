@@ -1,4 +1,5 @@
 ﻿using AREML.EPOD.Core.Configurations;
+using AREML.EPOD.Core.Dtos.ForwardLogistics;
 using AREML.EPOD.Core.Dtos.Response;
 using AREML.EPOD.Core.Dtos.ReverseLogistics;
 using AREML.EPOD.Core.Entities;

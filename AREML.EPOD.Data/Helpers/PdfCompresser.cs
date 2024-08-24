@@ -13,6 +13,7 @@ namespace AREML.EPOD.Data.Helpers
 {
     public class PdfCompresser
     {
+        #region itext7-Harshini
 
         //public string convertFilenametoPDF(string name)
         //{
@@ -54,35 +55,35 @@ namespace AREML.EPOD.Data.Helpers
         //    return convertedAttachmentProps;
         //}
 
-        public byte[] MergePdf(List<byte[]> files)
-        {
-            try
-            {
-                using (var outputStream = new MemoryStream())
-                {
-                    using (var pdfWriter = new PdfWriter(outputStream))
-                    {
-                        using (var pdfDocument = new PdfDocument(pdfWriter))
-                        {
-                            var pdfMerger = new PdfMerger(pdfDocument);
-                            foreach (var file in files)
-                            {
-                                using (var pdfReader = new PdfReader(new MemoryStream(file)))
-                                using (var pdfSourceDocument = new PdfDocument(pdfReader))
-                                {
-                                    pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
-                                }
-                            }
-                        }
-                    }
-                    return outputStream.ToArray();
-                }
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
+        //public byte[] MergePdf(List<byte[]> files)
+        //{
+        //    try
+        //    {
+        //        using (var outputStream = new MemoryStream())
+        //        {
+        //            using (var pdfWriter = new PdfWriter(outputStream))
+        //            {
+        //                using (var pdfDocument = new PdfDocument(pdfWriter))
+        //                {
+        //                    var pdfMerger = new PdfMerger(pdfDocument);
+        //                    foreach (var file in files)
+        //                    {
+        //                        using (var pdfReader = new PdfReader(new MemoryStream(file)))
+        //                        using (var pdfSourceDocument = new PdfDocument(pdfReader))
+        //                        {
+        //                            pdfMerger.Merge(pdfSourceDocument, 1, pdfSourceDocument.GetNumberOfPages());
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //            return outputStream.ToArray();
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        throw ex;
+        //    }
+        //}
 
         //private static byte[] CompressImage(byte[] fileBytes, int newQuality)
         //{
@@ -96,6 +97,8 @@ namespace AREML.EPOD.Data.Helpers
         //        }
         //    }
         //}
+
+        #endregion
 
         #region itext7
         public ConvertedAttachmentProps ConvertImagetoPDF(string filename, byte[] filebytes)
@@ -194,9 +197,6 @@ namespace AREML.EPOD.Data.Helpers
         }
 
         #endregion
-
-
-
 
         #region Unused
 

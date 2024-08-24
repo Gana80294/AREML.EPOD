@@ -1,9 +1,12 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.ForwardLogistics;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
+using System.Net.Mail;
 
 namespace AREML.EPOD.API.Controllers
 {
@@ -261,6 +264,50 @@ namespace AREML.EPOD.API.Controllers
         }
 
 
+
+        #region SAP integration
+
+        public async Task<IActionResult> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail)
+        {
+            return Ok(_forwardRepository.InsertInvoiceDetails(insertInvoiceDetail));
+        }
+
+        #endregion
+
+
+        #region Acknowledgment
+
+        //[HttpPost]
+        //public async Task<IActionResult> ConfirmInvoice()
+        //{
+        //    try
+        //    {
+        //        var request = Request;
+        //        IFormFileCollection files = request.Form.Files;
+        //        InvoiceUpdate invoiceUpdate = JsonConvert.DeserializeObject<InvoiceUpdate>(request.Form["InvoiceUpdate"]);
+
+        //        using (Stream st = files[0].OpenReadStream())
+        //        {
+        //            using (BinaryReader br = new BinaryReader(st))
+        //            {
+        //                byte[] fileBytes = br.ReadBytes((Int32)st.Length);
+        //                if (fileBytes.Length > 0)
+        //                {
+        //                    return Ok(await _forwardRepository.ConfirmInvoice(invoiceUpdate, fileBytes));
+        //                }
+        //                else
+        //                {
+        //                    throw new Exception("File is empty. Please upload a valid file.");
+        //                }
+        //            }
+        //        }
+        //    }
+        //    catch (Exception)
+        //    {
+        //        throw;
+        //    }
+        //}
+        #endregion
 
 
         #region Sales Return

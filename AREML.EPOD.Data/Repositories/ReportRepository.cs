@@ -1216,7 +1216,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DowloandPODDocument(int HeaderID, int AttachmentID)
+        public async Task<HttpResponseMessage> DowloadPODDocument(int HeaderID, int AttachmentID)
         {
             try
             {
