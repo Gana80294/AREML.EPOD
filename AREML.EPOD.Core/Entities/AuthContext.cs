@@ -53,7 +53,7 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<UserCreationErrorLog> UserCreationErrorLogs { get; set; }
         public DbSet<UserActionHistory> UserActionHistories { get; set; }
         public DbSet<CFAUserMapping> CFAUserMappings { get; set; }
-        public DbSet<PlantGroupPlantMap> PlantGroupPlantMap { get; set; }
+        //public DbSet<PlantGroupPlantMap> PlantGroupPlantMap { get; set; }
 
         public DbSet<SalesReturnCreditNoteLog> SalesReturnCreditNoteLogs { get; set; }
         public DbSet<ScrollNotification> ScrollNotifications { get; set; }
