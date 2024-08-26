@@ -1,4 +1,6 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.ForwardLogistics;
+using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using Microsoft.AspNetCore.Http;
@@ -13,7 +15,6 @@ namespace AREML.EPOD.Interfaces.IRepositories
 {
     public interface IForwardLogisticsRepository
     {
-
 
         Task<List<Invoice_Header_View>> GetAllInvoiceDetails(Guid UserID);
         Task<List<P_INV_HEADER_DETAIL>> GetAllInvoiceDetailByUser(string UserCode);
@@ -39,14 +40,14 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoicesByUserID(Guid UserID);
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoices();
         Task<List<InvoiceHeaderDetails>> FilterSavedInvoicesByUserID(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadSavedInvoicesByUserID(FilterClass filterClass);
+        Task<byte[]> DownloadSavedInvoicesByUserID(FilterClass filterClass);
         Task<List<P_INV_HEADER_DETAIL>> GetAllPartiallyConfirmedInvoices();
 
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoices(int CurrentPage, int Records, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);
 
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoices(FilterClass filterClass);
         Task<List<P_INV_HEADER_DETAIL>> FilterPartiallyConfirmedInvoicesForAdmin(FilterClass filterClass);
-        Task<HttpResponseMessage> DownloadPartiallyConfirmedInvoices(FilterClass filterClass);
+        Task<byte[]> DownloadPartiallyConfirmedInvoices(FilterClass filterClass);
         Task<bool> UpdatePartiallyConfirmedInvoiceStatus(int HeaderID, string Status);
         Task<bool> UpdateVehicleUnloadedDateByLR(LRWithVehicleUnloaded request);
         Task<bool> UpdateLRDateByInvoiceNo(LRDateUpdate req);
@@ -54,7 +55,11 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<bool> SaveScrollNotification(ScrollNotification notification);
         Task<List<ScrollNotification>> GetScrollNotification();
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
-        Task<HttpResponseMessage> DowloandHistoryDocument(int id);
+        Task<byte[]> DowloandHistoryDocument(int id);
+
+        #region SAP Integration
+        Task<InsertInvoiceResponse> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail);
+        #endregion
 
         #region Acknowledgement
         Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);

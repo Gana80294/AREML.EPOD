@@ -242,6 +242,7 @@ namespace AREML.EPOD.API.Controllers
         {
             return Ok(await _forwardRepository.InsertInvoiceDetails(insertInvoiceDetail));
         }
+        #endregion
 
         #region Sales Return
 
