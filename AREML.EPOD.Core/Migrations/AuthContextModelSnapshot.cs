@@ -526,7 +526,7 @@ namespace AREML.EPOD.Core.Migrations
 
                     b.HasKey("PlantGroupId", "PlantCode");
 
-                    b.ToTable("PlantGroupPlantMap");
+                    b.ToTable("PlantGroupPlantMaps");
                 });
 
             modelBuilder.Entity("AREML.EPOD.Core.Entities.Mappings.PlantOrganizationMap", b =>
