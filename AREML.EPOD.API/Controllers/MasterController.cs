@@ -98,7 +98,11 @@ namespace AREML.EPOD.API.Controllers
         {
             return Ok(await _masterRepository.UpdateUser(userWithRole));
         }
-
+        [HttpGet]
+        public List<UserWithRole> GetAllUsers(int Page)
+        {
+            return _masterRepository.GetAllUsers(Page);
+        }
         [HttpPost]
         public async Task<IActionResult> DeleteUser(UserWithRole userWithRole)
         {
@@ -503,6 +507,14 @@ namespace AREML.EPOD.API.Controllers
             return _masterRepository.GetAllPlantOrganizationMaps();
         }
 
+        #endregion
+
+        #region Division
+        [HttpGet]
+        public async Task<IActionResult> GetDivisions()
+        {
+            return Ok(await this._masterRepository.GetDivisions());
+        }
         #endregion
 
         #region grouping & download

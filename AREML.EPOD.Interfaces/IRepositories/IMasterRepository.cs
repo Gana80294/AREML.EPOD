@@ -23,6 +23,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         List<UserWithRole> GetSearchedUser(string key, int Page);
         bool DownloadUsersExcell(DownloadUserModel downloadUser);
         Task<bool> UpdateUser(UserWithRole userWithRole);
+        List<UserWithRole> GetAllUsers(int Page);
         Task<bool> DeleteUser(UserWithRole userWithRole);
         #endregion
 
@@ -61,6 +62,10 @@ namespace AREML.EPOD.Interfaces.IRepositories
         List<Organization> GetAllOrganizationsByUserID(Guid UserID);
         Task<Organization> UpdateOrganization(Organization Organization);
         Task<Organization> DeleteOrganization(Organization Organization);
+        #endregion
+
+        #region Divisions
+        Task<List<string>> GetDivisions();
         #endregion
 
         #region CustomerGroup

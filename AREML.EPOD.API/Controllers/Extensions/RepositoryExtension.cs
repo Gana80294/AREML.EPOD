@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Data.Repositories;
+﻿using AREML.EPOD.Data.Helpers;
+using AREML.EPOD.Data.Repositories;
 using AREML.EPOD.Interfaces.IRepositories;
 
 namespace AREML.EPOD.API.Extensions
@@ -17,6 +18,8 @@ namespace AREML.EPOD.API.Extensions
             services.AddScoped<IReverseLogisticsRepository, ReverseLogisticsRepository>();
             services.AddScoped<IAuthenticationRepository,AuthenticationRepository>();
 
+
+            services.AddSingleton<PasswordEncryptor>();
             return services;
         }
     }

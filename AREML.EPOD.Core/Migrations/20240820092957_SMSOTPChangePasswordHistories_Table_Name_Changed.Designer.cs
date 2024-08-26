@@ -4,6 +4,7 @@ using AREML.EPOD.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,13 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AREML.EPOD.Core.Migrations
 {
     [DbContext(typeof(AuthContext))]
-    partial class AuthContextModelSnapshot : ModelSnapshot
+    [Migration("20240820092957_SMSOTPChangePasswordHistories_Table_Name_Changed")]
+    partial class SMSOTPChangePasswordHistories_Table_Name_Changed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.8")
+                .HasAnnotation("ProductVersion", "8.0.7")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -526,7 +529,7 @@ namespace AREML.EPOD.Core.Migrations
 
                     b.HasKey("PlantGroupId", "PlantCode");
 
-                    b.ToTable("PlantGroupPlantMap");
+                    b.ToTable("PlantGroupPlantMaps");
                 });
 
             modelBuilder.Entity("AREML.EPOD.Core.Entities.Mappings.PlantOrganizationMap", b =>
@@ -1378,7 +1381,7 @@ namespace AREML.EPOD.Core.Migrations
 
                     b.HasIndex("RPOD_HEADER_ID");
 
-                    b.ToTable("WARRANTY_REPLACEMENT");
+                    b.ToTable("WARRANTY_REPLACEMENT_DETAILS");
                 });
 
             modelBuilder.Entity("AREML.EPOD.Core.Entities.Master.UserManualDocStore", b =>

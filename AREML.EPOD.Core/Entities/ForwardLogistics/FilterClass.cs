@@ -9,8 +9,8 @@ namespace AREML.EPOD.Core.Entities.ForwardLogistics
 {
     public class FilterClass
     {
-        public Guid? UserID { get; set; }
-        public string? UserCode { get; set; }
+        public Guid UserID { get; set; }
+        public string UserCode { get; set; }
         public int CurrentPage { get; set; }
         public int Records { get; set; }
         public List<string> Status { get; set; }

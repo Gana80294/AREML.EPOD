@@ -702,6 +702,70 @@ namespace AREML.EPOD.Data.Repositories
 
         }
 
+        public List<UserWithRole> GetAllUsers(int Page)
+        {
+            try
+            {
+                var noRecords = 20;
+                var SkipValue = (Page - 1) * noRecords;
+                var TakeValue = noRecords;
+                var result = (from tb in _ctx.Users
+                              join tb1 in _ctx.UserRoleMaps on tb.UserID equals tb1.UserID
+                              where tb.IsActive && tb1.IsActive == true
+                              orderby tb.CreatedOn
+                              select new
+                              {
+                                  tb.UserID,
+                                  tb.UserCode,
+                                  tb.UserName,
+                                  tb.Email,
+                                  tb.ContactNumber,
+                                  tb.Password,
+                                  tb.IsActive,
+                                  tb.CreatedOn,
+                                  tb.ModifiedOn,
+                                  tb1.RoleID,
+                                  tb.CustomerGroupCode
+                              }).Skip(SkipValue).Take(noRecords).ToList();
+
+                List<UserWithRole> UserWithRoleList = new List<UserWithRole>();
+
+                result.ForEach(record =>
+                {
+                    UserWithRoleList.Add(new UserWithRole()
+                    {
+                        UserID = record.UserID,
+                        UserCode = record.UserCode,
+                        UserName = record.UserName,
+                        OrganizationList = (from tb in _ctx.UserOrganizationMaps
+                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                                            where tb.UserID == record.UserID
+                                            select tb.OrganizationCode).ToList(),
+                        PlantList = (from tb in _ctx.UserPlantMaps
+                                     join tb1 in _ctx.Plants on tb.PlantCode equals tb1.PlantCode
+                                     where tb.UserID == record.UserID
+                                     select tb.PlantCode).ToList(),
+                        Email = record.Email,
+                        ContactNumber = record.ContactNumber,
+                        Password =_passwordEncryptor.Decrypt(record.Password, true),
+                        IsActive = record.IsActive,
+                        CreatedOn = record.CreatedOn,
+                        ModifiedOn = record.ModifiedOn,
+                        RoleID = record.RoleID,
+                        CustomerGroup = record.CustomerGroupCode,
+                        SLSgroups = _ctx.UserSalesGroupMaps.Where(k => k.UserID == record.UserID).Select(p => p.SGID).ToList()
+
+                    });
+
+                });
+                return UserWithRoleList;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
         public async Task<bool> DeleteUser(UserWithRole userWithRole)
         {
 
@@ -786,24 +850,24 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                //List<RoleWithApp> RoleWithAppList = new List<RoleWithApp>();
+                List<RoleWithApp> RoleWithAppList = new List<RoleWithApp>();
                 List<Role> RoleList = (from tb in _ctx.Roles
                                        where tb.IsActive
                                        select tb).ToList();
-                var roleWithAppList = _mapper.Map<List<RoleWithApp>>(RoleList);
-                //foreach (Role rol in RoleList)
-                //{
-                //    RoleWithAppList.Add(new RoleWithApp()
-                //    {
-                //        RoleID = rol.RoleID,
-                //        RoleName = rol.RoleName,
-                //        IsActive = rol.IsActive,
-                //        CreatedOn = rol.CreatedOn,
-                //        ModifiedOn = rol.ModifiedOn,
-                //        AppIDList = _ctx.RoleAppMaps.Where(x => x.RoleID == rol.RoleID && x.IsActive == true).Select(r => r.AppID).ToArray()
-                //    });
-                //}
-                return roleWithAppList;
+                //var roleWithAppList = _mapper.Map<List<RoleWithApp>>(RoleList);
+                foreach (Role rol in RoleList)
+                {
+                    RoleWithAppList.Add(new RoleWithApp()
+                    {
+                        RoleID = rol.RoleID,
+                        RoleName = rol.RoleName,
+                        IsActive = rol.IsActive,
+                        CreatedOn = rol.CreatedOn,
+                        ModifiedOn = rol.ModifiedOn,
+                        AppIDList = _ctx.RoleAppMaps.Where(x => x.RoleID == rol.RoleID && x.IsActive == true).Select(r => r.AppID).ToArray()
+                    });
+                }
+                return RoleWithAppList;
             }
             catch (Exception ex)
             {
@@ -1368,6 +1432,23 @@ namespace AREML.EPOD.Data.Repositories
 
         #endregion
 
+        #region Divisions
+        public async Task<List<string>> GetDivisions()
+        {
+            try
+            {
+                var result = await (from tb in _ctx.P_INV_HEADER_DETAIL
+                                    where tb.IS_ACTIVE
+                                    select tb.DIVISION).Distinct().ToListAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+
         #region CustomerGroup
 
         public async Task<CustomerGroup> CreateCustomerGroup(CustomerGroup userGroup)
@@ -1922,30 +2003,51 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var result = (from tb in _ctx.Plants
-                              where tb.IsActive
-                              select tb).ToList();
+                //var result = (from tb in _ctx.Plants
+                //              where tb.IsActive
+                //              select tb).ToList();
 
-                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                result.ForEach(record =>
-                {
-                    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                    {
-                        PlantCode = record.PlantCode,
-                        Description = record.Description,
-                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                                            where tb.PlantCode == record.PlantCode
-                                            select tb.OrganizationCode).FirstOrDefault(),
-                        IsActive = record.IsActive,
-                        CreatedBy = record.CreatedBy,
-                        CreatedOn = record.CreatedOn,
-                        ModifiedOn = record.ModifiedOn,
-                        ModifiedBy = record.ModifiedBy,
-                    });
+                //result.ForEach(record =>
+                //{
+                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                //    {
+                //        PlantCode = record.PlantCode,
+                //        Description = record.Description,
+                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                //                            where tb.PlantCode == record.PlantCode
+                //                            select tb.OrganizationCode).FirstOrDefault(),
+                //        IsActive = record.IsActive,
+                //        CreatedBy = record.CreatedBy,
+                //        CreatedOn = record.CreatedOn,
+                //        ModifiedOn = record.ModifiedOn,
+                //        ModifiedBy = record.ModifiedBy,
+                //    });
 
-                });
+                //});
+                //return PlantWithOrganizationList;
+
+                var query = from plant in _ctx.Plants
+                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                            where plant.IsActive
+                            select new PlantWithOrganization
+                            {
+                                PlantCode = plant.PlantCode,
+                                Description = plant.Description,
+                                OrganizationCode = org.OrganizationCode,
+                                IsActive = plant.IsActive,
+                                CreatedBy = plant.CreatedBy,
+                                CreatedOn = plant.CreatedOn,
+                                ModifiedOn = plant.ModifiedOn,
+                                ModifiedBy = plant.ModifiedBy,
+                            };
+
+                // Execute the query and convert the result to a list
+                List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
+
                 return PlantWithOrganizationList;
             }
             catch (Exception ex)
@@ -1958,31 +2060,53 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var result = (from tb in _ctx.Plants
-                              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
-                              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
-                              select tb).ToList();
+                //var result = (from tb in _ctx.Plants
+                //              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
+                //              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
+                //              select tb).ToList();
 
-                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                result.ForEach(record =>
-                {
-                    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                    {
-                        PlantCode = record.PlantCode,
-                        Description = record.Description,
-                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                                            where tb.PlantCode == record.PlantCode
-                                            select tb.OrganizationCode).FirstOrDefault(),
-                        IsActive = record.IsActive,
-                        CreatedBy = record.CreatedBy,
-                        CreatedOn = record.CreatedOn,
-                        ModifiedOn = record.ModifiedOn,
-                        ModifiedBy = record.ModifiedBy,
-                    });
+                //result.ForEach(record =>
+                //{
+                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                //    {
+                //        PlantCode = record.PlantCode,
+                //        Description = record.Description,
+                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                //                            where tb.PlantCode == record.PlantCode
+                //                            select tb.OrganizationCode).FirstOrDefault(),
+                //        IsActive = record.IsActive,
+                //        CreatedBy = record.CreatedBy,
+                //        CreatedOn = record.CreatedOn,
+                //        ModifiedOn = record.ModifiedOn,
+                //        ModifiedBy = record.ModifiedBy,
+                //    });
 
-                });
+                //});
+
+
+                var query = from plant in _ctx.Plants
+                            join upMap in _ctx.UserPlantMaps on plant.PlantCode equals upMap.PlantCode
+                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                            where upMap.UserID == UserID && plant.IsActive
+                            select new PlantWithOrganization
+                            {
+                                PlantCode = plant.PlantCode,
+                                Description = plant.Description,
+                                OrganizationCode = org.OrganizationCode,
+                                IsActive = plant.IsActive,
+                                CreatedBy = plant.CreatedBy,
+                                CreatedOn = plant.CreatedOn,
+                                ModifiedOn = plant.ModifiedOn,
+                                ModifiedBy = plant.ModifiedBy,
+                            };
+
+                // Execute the query and convert the result to a list
+                List<PlantWithOrganization>  PlantWithOrganizationList = query.Distinct().ToList();
+
                 return PlantWithOrganizationList;
             }
             catch (Exception ex)
@@ -2643,7 +2767,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChnagePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
+                SMSOTPChangePasswordHistory sMSOTP = _ctx.SMSOTPChangePasswordHistories.FirstOrDefault(x => x.OTPID == oTPBody.OTPTransID && x.OTP == oTPBody.recievedOTP);
 
                 if (sMSOTP != null)
                 {

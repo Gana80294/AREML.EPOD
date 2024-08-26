@@ -5,6 +5,7 @@ using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Core.Entities.ReverseLogistics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,9 +16,10 @@ namespace AREML.EPOD.Core.Entities
 {
     public class AuthContext : DbContext
     {
+        private IConfiguration _config;
         public AuthContext(DbContextOptions options) : base(options)
         {
-            Database.SetCommandTimeout(Int32.MaxValue);
+            //Database.SetCommandTimeout(Int32.MaxValue);
         }
 
         public DbSet<ClientDetails> Clients { get; set; }
@@ -46,11 +48,12 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<CustomerGroup> CustomerGroups { get; set; }
 
         public DbSet<SLSGroupWithCustomerGroupMap> SLSGroupWithCustomerGroupMaps { get; set; }
-        public DbSet<SMSOTPChangePasswordHistory> SMSOTPChnagePasswordHistories { get; set; }
+        public DbSet<SMSOTPChangePasswordHistory> SMSOTPChangePasswordHistories { get; set; }
 
         public DbSet<UserCreationErrorLog> UserCreationErrorLogs { get; set; }
         public DbSet<UserActionHistory> UserActionHistories { get; set; }
         public DbSet<CFAUserMapping> CFAUserMappings { get; set; }
+        public DbSet<PlantGroupPlantMap> PlantGroupPlantMap { get; set; }
 
         public DbSet<SalesReturnCreditNoteLog> SalesReturnCreditNoteLogs { get; set; }
         public DbSet<ScrollNotification> ScrollNotifications { get; set; }
@@ -61,7 +64,7 @@ namespace AREML.EPOD.Core.Entities
         public DbSet<RPOD_MATERIAL> RPOD_MATERIAL_DETAILS { get; set; }
         public DbSet<RPOD_LR_DETAIL> RPOD_LR_DETAILS { get; set; }
         public DbSet<RPOD_LR_ATTACHMENT> RPOD_LR_ATTACHMENTS { get; set; }
-        public DbSet<WARRANTY_REPLACEMENT> WARRANTY_REPLACEMENT_DETAILS { get; set; }
+        public DbSet<WARRANTY_REPLACEMENT> WARRANTY_REPLACEMENT { get; set; }
         public DbSet<ReversePodApprover> ReversePodApprovers { get; set; }
         public DbSet<MobileVersion> MobileVersions { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -71,6 +74,7 @@ namespace AREML.EPOD.Core.Entities
             modelBuilder.Entity<P_INV_ITEM_DETAIL>()
             .HasIndex(p => new { p.HEADER_ID });
         }
+
 
     }
 }
