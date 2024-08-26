@@ -63,7 +63,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         #endregion
 
         #region Acknowledgement
-        //Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
+        Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
         #endregion
 
         #region Sales Return

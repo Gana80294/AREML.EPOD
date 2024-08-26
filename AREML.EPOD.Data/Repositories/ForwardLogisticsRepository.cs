@@ -9,6 +9,7 @@ using AREML.EPOD.Data.Helpers;
 using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -21,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -1294,7 +1296,7 @@ namespace AREML.EPOD.Data.Repositories
                     }
                     using (var workbook = new XSSFWorkbook())
                     {
-                        ISheet sheet = _excelHelper.CreateNPOIworksheet(result,true, workbook);
+                        ISheet sheet = _excelHelper.CreateNPOIworksheet(result, true, workbook);
                         using (var stream = new MemoryStream())
                         {
                             workbook.Write(stream);
@@ -1580,7 +1582,7 @@ namespace AREML.EPOD.Data.Repositories
 
                 using (var workbook = new XSSFWorkbook())
                 {
-                    ISheet sheet = _excelHelper.CreateNPOIworksheet(result,true, workbook);
+                    ISheet sheet = _excelHelper.CreateNPOIworksheet(result, true, workbook);
                     using (var stream = new MemoryStream())
                     {
                         workbook.Write(stream);
@@ -1800,7 +1802,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             var response = new InsertInvoiceResponse();
             response.Status = true;
-            using (var transaction = _dbContext.Database.BeginTransaction())
+            using (var transaction = await _dbContext.Database.BeginTransactionAsync())
             {
                 try
                 {
@@ -1815,6 +1817,7 @@ namespace AREML.EPOD.Data.Repositories
                         var header = CreateInvHeader(insertInvoiceDetail);
                         await _dbContext.P_INV_HEADER_DETAIL.AddAsync(header);
                         await _dbContext.SaveChangesAsync();
+
                         var items = CreateInvoiceLineItem(header.HEADER_ID, insertInvoiceDetail.ITEM_LIST);
                         await _dbContext.P_INV_ITEM_DETAIL.AddRangeAsync(items);
                         await _dbContext.SaveChangesAsync();
@@ -1832,8 +1835,14 @@ namespace AREML.EPOD.Data.Repositories
                         await _dbContext.SaveChangesAsync();
                         response.StatusMessage = $"Invoice No {invHeader.INV_NO} is updated";
                     }
-
+                    else
+                    {
+                        LogWriter.WriteProcessLog($"Invoice No {invHeader.INV_NO} already exist with the status {invHeader.STATUS}");
+                        response.Status = false;
+                        response.StatusMessage = $"Invoice No {invHeader.INV_NO} already exist with the status {invHeader.STATUS}";
+                    }
                     LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 50)));
+                    await transaction.CommitAsync();
                     return response;
                 }
                 catch (Exception ex)
@@ -1843,7 +1852,6 @@ namespace AREML.EPOD.Data.Repositories
                     response.Status = false;
                     response.StatusMessage = ex.Message;
                     await transaction.RollbackAsync();
-                    transaction.Dispose();
                     return response;
                 }
             }
@@ -1980,7 +1988,6 @@ namespace AREML.EPOD.Data.Repositories
             return items;
         }
 
-
         private void UpdateInvHeader(P_INV_HEADER_DETAIL header, InsertInvoiceDetail insertInvoiceDetail)
         {
             header.PLANT = insertInvoiceDetail.PLANT;
@@ -2092,40 +2099,131 @@ namespace AREML.EPOD.Data.Repositories
 
         #region Acknowledgment
 
-        //public async Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes)
-        //{
-        //    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
-        //    LogWriter.WriteProcessLog($"ForwardLogisticsRepository/ConfirmInvoice :- Paylod Details : {JsonConvert.SerializeObject(invoiceUpdate).ToString()}");
-        //    string fileName = $"{invoiceUpdate.HEADER_ID}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.pdf";
-        //    using (var transaction = this._dbContext.Database.BeginTransaction())
-        //    {
-        //        try
-        //        {
-        //            ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
-        //            var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
-        //            if (header != null)
-        //            {
-        //                var _networkPath = _networkCredentials.ReverseAttachmentsPath;
-        //                _networkFileHelper.SaveFile(fileName,fileBytes,_networkPath);
+        public async Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes)
+        {
+            var response = new ResponseMessage()
+            {
+                Status = 200,
+                Message = "",
+                Error = ""
+            };
+            LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+            LogWriter.WriteProcessLog($"ForwardLogisticsRepository/ConfirmInvoice :- Paylod Details : {JsonConvert.SerializeObject(invoiceUpdate).ToString()}");
+            string fileName = $"{invoiceUpdate.HEADER_ID}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.pdf";
+            using (var transaction = await this._dbContext.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
+                    var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+                    if (header != null)
+                    {
+                        var plGrps = _dbContext.PlantGroupPlantMap.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToList();
+                        if (plGrps != null && plGrps.Count > 0 && plGrps.Contains(header.PLANT_CODE))
+                        {
+                            var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID);
+                            if (previousAttachment == null)
+                            {
+                                P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+                                attachment.HEADER_ID = invoiceUpdate.HEADER_ID;
+                                attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+                                attachment.DOCUMENT_TYPE = "application/pdf";
+                                attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+                                attachment.CREATED_BY = invoiceUpdate.UserId;
+                                attachment.CREATED_ON = DateTime.Now;
+                                attachment.IS_ACTIVE = true;
+                                _dbContext.P_INV_ATTACHMENT.Add(attachment);
+                                await _dbContext.SaveChangesAsync();
+                            }
+                            else
+                            {
+                                var docHistory = new DocumentHistory();
+                                docHistory.HeaderId = previousAttachment.HEADER_ID;
+                                docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
+                                docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
+                                docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+                                docHistory.CreatedOn = previousAttachment.CREATED_ON;
+                                docHistory.CreatedBy = previousAttachment.CREATED_BY;
+                                _dbContext.DocumentHistories.Add(docHistory);
+                                previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+                                previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+                                previousAttachment.CREATED_ON = DateTime.Now;
+                                await _dbContext.SaveChangesAsync();
+                            }
+                        }
+                        else
+                        {
+                            var headerList = _dbContext.P_INV_HEADER_DETAIL.Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE).Select(t => t.HEADER_ID).ToList();
+                            foreach (var headerId in headerList)
+                            {
+                                var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
 
-        //            }
-        //            else
-        //            {
-        //                throw new Exception("Unable to find the invoice.");
-        //            }
+                                if (previousAttachment == null)
+                                {
+                                    P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+                                    attachment.HEADER_ID = headerId;
+                                    attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+                                    attachment.DOCUMENT_TYPE = "application/pdf";
+                                    attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+                                    attachment.CREATED_BY = invoiceUpdate.UserId;
+                                    attachment.CREATED_ON = DateTime.Now;
+                                    attachment.IS_ACTIVE = true;
+                                    _dbContext.P_INV_ATTACHMENT.Add(attachment);
+                                    await _dbContext.SaveChangesAsync();
+                                }
+                                else
+                                {
+                                    var docHistory = new DocumentHistory();
+                                    docHistory.HeaderId = previousAttachment.HEADER_ID;
+                                    docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
+                                    docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
+                                    docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+                                    docHistory.CreatedOn = previousAttachment.CREATED_ON;
+                                    docHistory.CreatedBy = previousAttachment.CREATED_BY;
+                                    _dbContext.DocumentHistories.Add(docHistory);
+                                    previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+                                    previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+                                    previousAttachment.CREATED_ON = DateTime.Now;
+                                    await _dbContext.SaveChangesAsync();
+                                }
 
-        //        }
-        //        catch (Exception)
-        //        {
-        //            transaction.Rollback();
-        //            transaction.Dispose();
-        //            LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
-        //            throw;
+                            }
+                        }
 
-        //        }
-        //    }
-        //}
+                        List<P_INV_ITEM_DETAIL> InvoiceItems = _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdate.HEADER_ID).ToList();
+                        InvoiceItems.ForEach((item) =>
+                        {
+                            item.RECEIVED_QUANTITY = item.QUANTITY;
+                            item.STATUS = "Confirmed";
+                        });
 
+                        P_INV_HEADER_DETAIL head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+                        if (head != null)
+                        {
+                            head.STATUS = "Confirmed";
+                            head.ACTUAL_DELIVERY_DATE = DateTime.Now;
+                        }
+                        await _dbContext.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                        response.Message = $"Invoice {head.INV_NO} Confirmed";
+                        return response;
+                    }
+                    else
+                    {
+                        throw new Exception("Unable to find the invoice.");
+                    }
+
+                }
+                catch (Exception)
+                {
+                    await transaction.RollbackAsync();
+                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+                    throw;
+                }
+            }
+        }
+
+        
         #endregion
 
 

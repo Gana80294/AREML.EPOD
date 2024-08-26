@@ -266,10 +266,10 @@ namespace AREML.EPOD.API.Controllers
 
 
         #region SAP integration
-
+        [HttpPost]
         public async Task<IActionResult> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail)
         {
-            return Ok(_forwardRepository.InsertInvoiceDetails(insertInvoiceDetail));
+            return Ok(await _forwardRepository.InsertInvoiceDetails(insertInvoiceDetail));
         }
 
         #endregion

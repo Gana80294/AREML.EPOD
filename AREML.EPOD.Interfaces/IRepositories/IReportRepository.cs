@@ -10,7 +10,6 @@ namespace AREML.EPOD.Interfaces.IRepositories
 {
     public interface IReportRepository
     {
-        Task<List<string>> GetDivisions();
         Task<List<ReportInvoice>> GetPendingInvoiceDetails(Guid UserID);
 
         Task<List<ReportInvoice>> GetFilteredInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null);

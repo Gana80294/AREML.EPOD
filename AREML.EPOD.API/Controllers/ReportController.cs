@@ -15,13 +15,6 @@ namespace AREML.EPOD.API.Controllers
             this._reportRepository = reportRepository;
         }
 
-
-        [HttpGet]
-        public async Task<IActionResult> GetDivisions()
-        {
-            return Ok(await this._reportRepository.GetDivisions());
-        }
-
         [HttpGet]
         public async Task<IActionResult> GetPendingInvoiceDetails(Guid UserID)
         {

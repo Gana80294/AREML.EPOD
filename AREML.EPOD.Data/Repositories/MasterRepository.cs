@@ -1441,6 +1441,23 @@ namespace AREML.EPOD.Data.Repositories
 
         #endregion
 
+        #region Divisions
+        public async Task<List<string>> GetDivisions()
+        {
+            try
+            {
+                var result = await (from tb in _ctx.P_INV_HEADER_DETAIL
+                                    where tb.IS_ACTIVE
+                                    select tb.DIVISION).Distinct().ToListAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        #endregion
+
         #region CustomerGroup
 
         public async Task<CustomerGroup> CreateCustomerGroup(CustomerGroup userGroup)
@@ -1995,30 +2012,51 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var result = (from tb in _ctx.Plants
-                              where tb.IsActive
-                              select tb).ToList();
+                //var result = (from tb in _ctx.Plants
+                //              where tb.IsActive
+                //              select tb).ToList();
 
-                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                result.ForEach(record =>
-                {
-                    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                    {
-                        PlantCode = record.PlantCode,
-                        Description = record.Description,
-                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                                            where tb.PlantCode == record.PlantCode
-                                            select tb.OrganizationCode).FirstOrDefault(),
-                        IsActive = record.IsActive,
-                        CreatedBy = record.CreatedBy,
-                        CreatedOn = record.CreatedOn,
-                        ModifiedOn = record.ModifiedOn,
-                        ModifiedBy = record.ModifiedBy,
-                    });
+                //result.ForEach(record =>
+                //{
+                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                //    {
+                //        PlantCode = record.PlantCode,
+                //        Description = record.Description,
+                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                //                            where tb.PlantCode == record.PlantCode
+                //                            select tb.OrganizationCode).FirstOrDefault(),
+                //        IsActive = record.IsActive,
+                //        CreatedBy = record.CreatedBy,
+                //        CreatedOn = record.CreatedOn,
+                //        ModifiedOn = record.ModifiedOn,
+                //        ModifiedBy = record.ModifiedBy,
+                //    });
 
-                });
+                //});
+                //return PlantWithOrganizationList;
+
+                var query = from plant in _ctx.Plants
+                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                            where plant.IsActive
+                            select new PlantWithOrganization
+                            {
+                                PlantCode = plant.PlantCode,
+                                Description = plant.Description,
+                                OrganizationCode = org.OrganizationCode,
+                                IsActive = plant.IsActive,
+                                CreatedBy = plant.CreatedBy,
+                                CreatedOn = plant.CreatedOn,
+                                ModifiedOn = plant.ModifiedOn,
+                                ModifiedBy = plant.ModifiedBy,
+                            };
+
+                // Execute the query and convert the result to a list
+                List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
+
                 return PlantWithOrganizationList;
             }
             catch (Exception ex)
@@ -2031,31 +2069,53 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var result = (from tb in _ctx.Plants
-                              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
-                              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
-                              select tb).ToList();
+                //var result = (from tb in _ctx.Plants
+                //              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
+                //              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
+                //              select tb).ToList();
 
-                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                result.ForEach(record =>
-                {
-                    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                    {
-                        PlantCode = record.PlantCode,
-                        Description = record.Description,
-                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                                            where tb.PlantCode == record.PlantCode
-                                            select tb.OrganizationCode).FirstOrDefault(),
-                        IsActive = record.IsActive,
-                        CreatedBy = record.CreatedBy,
-                        CreatedOn = record.CreatedOn,
-                        ModifiedOn = record.ModifiedOn,
-                        ModifiedBy = record.ModifiedBy,
-                    });
+                //result.ForEach(record =>
+                //{
+                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                //    {
+                //        PlantCode = record.PlantCode,
+                //        Description = record.Description,
+                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                //                            where tb.PlantCode == record.PlantCode
+                //                            select tb.OrganizationCode).FirstOrDefault(),
+                //        IsActive = record.IsActive,
+                //        CreatedBy = record.CreatedBy,
+                //        CreatedOn = record.CreatedOn,
+                //        ModifiedOn = record.ModifiedOn,
+                //        ModifiedBy = record.ModifiedBy,
+                //    });
 
-                });
+                //});
+
+
+                var query = from plant in _ctx.Plants
+                            join upMap in _ctx.UserPlantMaps on plant.PlantCode equals upMap.PlantCode
+                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                            where upMap.UserID == UserID && plant.IsActive
+                            select new PlantWithOrganization
+                            {
+                                PlantCode = plant.PlantCode,
+                                Description = plant.Description,
+                                OrganizationCode = org.OrganizationCode,
+                                IsActive = plant.IsActive,
+                                CreatedBy = plant.CreatedBy,
+                                CreatedOn = plant.CreatedOn,
+                                ModifiedOn = plant.ModifiedOn,
+                                ModifiedBy = plant.ModifiedBy,
+                            };
+
+                // Execute the query and convert the result to a list
+                List<PlantWithOrganization>  PlantWithOrganizationList = query.Distinct().ToList();
+
                 return PlantWithOrganizationList;
             }
             catch (Exception ex)

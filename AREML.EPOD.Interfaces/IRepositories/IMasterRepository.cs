@@ -64,6 +64,10 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<Organization> DeleteOrganization(Organization Organization);
         #endregion
 
+        #region Divisions
+        Task<List<string>> GetDivisions();
+        #endregion
+
         #region CustomerGroup
 
         Task<CustomerGroup> CreateCustomerGroup(CustomerGroup userGroup);

@@ -32,20 +32,7 @@ namespace AREML.EPOD.Data.Repositories
             _appSetting = configuration.GetSection("AppSettings").Get<AppSetting>();
 
         }
-        public async Task<List<string>> GetDivisions()
-        {
-            try
-            {
-                var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                    where tb.IS_ACTIVE
-                                    select tb.DIVISION).Distinct().ToListAsync();
-                return result;
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-        }
+        
 
         public async Task<List<ReportInvoice>> GetPendingInvoiceDetails(Guid UserID)
         {
