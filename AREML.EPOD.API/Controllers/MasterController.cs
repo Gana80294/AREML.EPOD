@@ -509,6 +509,14 @@ namespace AREML.EPOD.API.Controllers
 
         #endregion
 
+        #region Division
+        [HttpGet]
+        public async Task<IActionResult> GetDivisions()
+        {
+            return Ok(await this._masterRepository.GetDivisions());
+        }
+        #endregion
+
         #region grouping & download
 
         [HttpGet]

@@ -223,7 +223,24 @@ namespace AREML.EPOD.API.Controllers
         [HttpGet]
         public async Task<IActionResult> DowloandHistoryDocument(int id)
         {
-            return Ok(await this._forwardRepository.DowloandHistoryDocument(id));
+            var fileContent = await this._forwardRepository.DowloandHistoryDocument(id);
+
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Document_history_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+
+
+
+        #region SAP integration
+        [HttpPost]
+        public async Task<IActionResult> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail)
+        {
+            return Ok(await _forwardRepository.InsertInvoiceDetails(insertInvoiceDetail));
         }
 
         #region Sales Return

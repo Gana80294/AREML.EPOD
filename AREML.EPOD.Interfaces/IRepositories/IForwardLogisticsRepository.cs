@@ -56,6 +56,9 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
         Task<HttpResponseMessage> DowloandHistoryDocument(int id);
 
+        #region Acknowledgement
+        Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
+        #endregion
 
         #region Sales Return
         Task<string> SalesReturns(SalesReturnProps salesReturnProps);

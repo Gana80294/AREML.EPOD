@@ -29,8 +29,11 @@ namespace AREML.EPOD.API
             builder.Services.AddSwaggerGen();
             builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
 
-            builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext")));
-            
+            builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext"), sqlOptions =>
+            {
+                sqlOptions.CommandTimeout(180);
+            }), ServiceLifetime.Scoped);
+
 
             // Add Configuration Settings
             builder.Services.Configure<JwtSetting>(builder.Configuration.GetSection("JWTSecurity"));
