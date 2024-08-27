@@ -30,7 +30,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<P_INV_ITEM_DETAIL>> GetInvoiceItemDetailsByID(Guid UserID, int ID);
         Task<List<P_INV_ITEM_DETAIL>> GetInvoiceItemDetailsByUserAndID(string UserCode, int ID);
 
-        Task<bool> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation);
+        Task<P_INV_HEADER_DETAIL> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation);
         Task<bool> ConfirmInvoiceItems(InvoiceUpdation1 invoiceUpdation);
         Task<AttachmentStatus> GetAttachmentID(int headerId);
         Task<bool> CreateUserActionHistory(UserActionHistory log);
