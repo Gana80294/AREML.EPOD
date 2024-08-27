@@ -631,7 +631,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<bool> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation)
+        public async Task<P_INV_HEADER_DETAIL> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation)
         {
             if (invoiceUpdation.VEHICLE_REPORTED_DATE != null && !invoiceUpdation.VEHICLE_REPORTED_DATE.ToString().Contains("1970"))
             {
@@ -713,7 +713,7 @@ namespace AREML.EPOD.Data.Repositories
                         }
                     }
                     await _dbContext.SaveChangesAsync();
-                    return true;
+                    return head != null ? head : new P_INV_HEADER_DETAIL();
                 }
                 catch (Exception ex)
                 {
@@ -925,7 +925,7 @@ namespace AREML.EPOD.Data.Repositories
                             byte[] fileBytes = memoryStream.ToArray();
                             if (fileBytes.Length > 0)
                             {
-                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(FileName, fileBytes);
+                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(FileName, fileBytes);
                                 P_INV_HEADER_DETAIL header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.HEADER_ID == HeaderID);
 
                                 var plGrps = await _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToListAsync();
@@ -2124,7 +2124,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 try
                 {
-                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
                     if (header != null)
                     {
@@ -2248,7 +2248,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 try
                 {
-                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
                     if (header != null)
                     {
