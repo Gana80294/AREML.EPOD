@@ -22,14 +22,14 @@ namespace AREML.EPOD.Data.Repositories
     {
         private AuthContext _dbContext;
         private ExcelHelper _excelHelper;
-        private readonly AppSetting _appSetting;
+        private readonly NetworkCredentials _networkCredentials;
 
 
         public ReportRepository(AuthContext context, ExcelHelper excel,IConfiguration configuration)
         {
             this._dbContext = context;
             this._excelHelper = excel;
-            _appSetting = configuration.GetSection("AppSettings").Get<AppSetting>();
+            _networkCredentials = configuration.GetSection("NetworkCredentials").Get<NetworkCredentials>();
 
         }
         
@@ -1169,9 +1169,9 @@ namespace AREML.EPOD.Data.Repositories
             {
                 HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
                 var att = await _dbContext.P_INV_ATTACHMENT.Where(x => x.HEADER_ID == HeaderID && x.ATTACHMENT_ID == AttachmentID).FirstOrDefaultAsync();
-                string SharedFolderUserName = _appSetting.SharedFolderUserName;
-                string SharedFolderPassword = _appSetting.SharedFolderPassword;
-                string SharedFolderDomain = _appSetting.SharedFolderDomain;
+                string SharedFolderUserName = _networkCredentials.SharedFolderUserName;
+                string SharedFolderPassword = _networkCredentials.SharedFolderPassword;
+                string SharedFolderDomain = _networkCredentials.SharedFolderDomain;
 
                 if (att != null)
                 {

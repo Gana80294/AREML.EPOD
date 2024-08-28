@@ -7,6 +7,7 @@ using AREML.EPOD.Interfaces.IRepositories;
 using iTextSharp.text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace AREML.EPOD.API.Controllers
 {
