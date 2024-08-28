@@ -69,10 +69,9 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpGet]
-        [Route("DowloandPODDocument")]
-        public async Task<IActionResult> DowloandPODDocument(int HeaderID, int AttachmentID)
+        public async Task<IActionResult> DownloadPODDocument(int HeaderID, int AttachmentID)
         {
-            return Ok(await this._mobileRepository.DowloandPODDocument(HeaderID, AttachmentID));
+            return Ok(await this._mobileRepository.DowloandPODDocument(AttachmentID));
         }
 
         [HttpPost]

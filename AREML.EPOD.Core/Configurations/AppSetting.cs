@@ -13,9 +13,5 @@ namespace AREML.EPOD.Core.Configurations
         public string Invoice_Output {  get; set; }
         public string FTP_UserName {  get; set; }
         public string FTP_Password { get; set;}
-        public string ReverseAttachmentsPath { get; set; }
-        public string SharedFolderUserName {  get; set; }
-        public string SharedFolderPassword { get; set;}
-        public string SharedFolderDomain { get; set; }
     }
 }

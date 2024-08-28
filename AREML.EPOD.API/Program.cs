@@ -27,7 +27,7 @@ namespace AREML.EPOD.API
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
-            builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.WithOrigins("http://localhost:4200").AllowAnyHeader().AllowAnyMethod()); });
+            builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.WithOrigins("http://localhost:4200", "http://localhost:8100").AllowAnyHeader().AllowAnyMethod()); });
 
             builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext"), sqlOptions =>
             {
@@ -96,11 +96,11 @@ namespace AREML.EPOD.API
                 app.UseSwaggerUI();
             }
 
-            app.UseCors("cors");
+            //app.UseCors("cors");
 
             app.UseHttpsRedirection();
 
-            app.UseMiddleware<AuthMiddleware>();
+            //app.UseMiddleware<AuthMiddleware>();
 
             //app.UseAuthentication();
 

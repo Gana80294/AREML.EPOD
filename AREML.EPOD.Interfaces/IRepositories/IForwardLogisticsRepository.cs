@@ -30,7 +30,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<P_INV_ITEM_DETAIL>> GetInvoiceItemDetailsByID(Guid UserID, int ID);
         Task<List<P_INV_ITEM_DETAIL>> GetInvoiceItemDetailsByUserAndID(string UserCode, int ID);
 
-        Task<bool> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation);
+        Task<P_INV_HEADER_DETAIL> UpdateInvoiceItems(InvoiceUpdation invoiceUpdation);
         Task<bool> ConfirmInvoiceItems(InvoiceUpdation1 invoiceUpdation);
         Task<AttachmentStatus> GetAttachmentID(int headerId);
         Task<bool> CreateUserActionHistory(UserActionHistory log);
@@ -56,13 +56,17 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<ScrollNotification>> GetScrollNotification();
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
         Task<byte[]> DowloandHistoryDocument(int id);
+        Task<AttachmentResponse> DowloadPODDocument(int attachmentID);
 
         #region SAP Integration
         Task<InsertInvoiceResponse> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail);
         #endregion
 
         #region Acknowledgement
-        Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
+        Task<ResponseMessage> ConfirmInvoice();
+        Task<ResponseMessage> ConfirmInvoiceDetails();
+        Task<ResponseMessage> ConfirmQty(InvoiceUpdate invoiceUpdate);
+        Task<bool> ReUploadLR();
         #endregion
 
         #region Sales Return

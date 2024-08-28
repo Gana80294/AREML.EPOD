@@ -31,7 +31,7 @@ namespace AREML.EPOD.Data.Repositories
         private readonly AuthContext _dbContext;
         private readonly ExcelHelper _excelHelper;
         private readonly PdfCompresser _pdfCompresser;
-        private readonly AppSetting _appSetting;
+        private readonly NetworkCredentials _networkCredential;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public ReverseLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser, IHttpContextAccessor httpContextAccessor)
@@ -39,7 +39,7 @@ namespace AREML.EPOD.Data.Repositories
             this._dbContext = authContext;
             this._excelHelper = excel;
             _pdfCompresser = pdfCompresser;
-            _appSetting = configuration.GetSection("AppSettings").Get<AppSetting>();
+            _networkCredential = configuration.GetSection("NetworkCredentials").Get<NetworkCredentials>();
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -192,9 +192,9 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                string SharedFolderUserName = _appSetting.SharedFolderUserName;
-                string SharedFolderPassword = _appSetting.SharedFolderPassword;
-                string SharedFolderDomain = _appSetting.SharedFolderDomain;
+                string SharedFolderUserName = _networkCredential.SharedFolderUserName;
+                string SharedFolderPassword = _networkCredential.SharedFolderPassword;
+                string SharedFolderDomain = _networkCredential.SharedFolderDomain;
 
                 var att = await _dbContext.RPOD_LR_ATTACHMENTS.Where(x => x.Id == attachmentId).FirstOrDefaultAsync();
                 if (att != null)
@@ -427,10 +427,10 @@ namespace AREML.EPOD.Data.Repositories
         public async Task<bool> ConfirmReversePodDirectly()
         {
 
-            string path = _appSetting.ReverseAttachmentsPath;
-            string SharedFolderUserName = _appSetting.SharedFolderUserName;
-            string SharedFolderPassword = _appSetting.SharedFolderPassword;
-            string SharedFolderDomain = _appSetting.SharedFolderDomain;
+            string path = _networkCredential.ReverseAttachmentsPath;
+            string SharedFolderUserName = _networkCredential.SharedFolderUserName;
+            string SharedFolderPassword = _networkCredential.SharedFolderPassword;
+            string SharedFolderDomain = _networkCredential.SharedFolderDomain;
             string fileName = "";
 
             using (var transaction = _dbContext.Database.BeginTransaction())
@@ -452,7 +452,7 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
                                     try
@@ -575,10 +575,10 @@ namespace AREML.EPOD.Data.Repositories
 
         public async Task<bool> ConfirmReversePod()
         {
-            string path = _appSetting.ReverseAttachmentsPath;
-            string SharedFolderUserName = _appSetting.SharedFolderUserName;
-            string SharedFolderPassword = _appSetting.SharedFolderPassword;
-            string SharedFolderDomain = _appSetting.SharedFolderDomain;
+            string path = _networkCredential.ReverseAttachmentsPath;
+            string SharedFolderUserName = _networkCredential.SharedFolderUserName;
+            string SharedFolderPassword = _networkCredential.SharedFolderPassword;
+            string SharedFolderDomain = _networkCredential.SharedFolderDomain;
             string fileName = "";
             using (var transaction = _dbContext.Database.BeginTransaction())
             {
@@ -599,7 +599,7 @@ namespace AREML.EPOD.Data.Repositories
                                 byte[] fileBytes = br.ReadBytes((Int32)st.Length);
                                 if (fileBytes.Length > 0)
                                 {
-                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPdf(fileName, fileBytes);
+                                    ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
 
                                     string fullPath = Path.Combine(path, convertedAttachment.Filename);
