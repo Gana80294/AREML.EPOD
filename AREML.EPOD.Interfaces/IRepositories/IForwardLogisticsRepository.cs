@@ -56,13 +56,17 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<ScrollNotification>> GetScrollNotification();
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
         Task<byte[]> DowloandHistoryDocument(int id);
+        Task<AttachmentResponse> DowloadPODDocument(int attachmentID);
 
         #region SAP Integration
         Task<InsertInvoiceResponse> InsertInvoiceDetails(InsertInvoiceDetail insertInvoiceDetail);
         #endregion
 
         #region Acknowledgement
-        Task<ResponseMessage> ConfirmInvoice(InvoiceUpdate invoiceUpdate, byte[] fileBytes);
+        Task<ResponseMessage> ConfirmInvoice();
+        Task<ResponseMessage> ConfirmInvoiceDetails();
+        Task<ResponseMessage> ConfirmQty(InvoiceUpdate invoiceUpdate);
+        Task<bool> ReUploadLR();
         #endregion
 
         #region Sales Return

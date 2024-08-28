@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities;
+﻿using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
@@ -1246,17 +1247,18 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<string> DowloandPODDocument(int HeaderID, int AttachmentID)
+        public async Task<AttachmentResponse> DowloandPODDocument(int AttachmentID)
         {
             try
             {
-                P_INV_ATTACHMENT p_INV_ATTACHMENT = ((IQueryable<P_INV_ATTACHMENT>)_dbContext.P_INV_ATTACHMENT).Where((P_INV_ATTACHMENT x) => x.HEADER_ID == HeaderID && x.ATTACHMENT_ID == AttachmentID).FirstOrDefault();
+                P_INV_ATTACHMENT p_INV_ATTACHMENT = await ((IQueryable<P_INV_ATTACHMENT>)_dbContext.P_INV_ATTACHMENT).Where((P_INV_ATTACHMENT x) => x.ATTACHMENT_ID == AttachmentID).FirstOrDefaultAsync();
                 if (p_INV_ATTACHMENT != null && p_INV_ATTACHMENT.ATTACHMENT_FILE.Length != 0)
                 {
                     byte[] aTTACHMENT_FILE = p_INV_ATTACHMENT.ATTACHMENT_FILE;
-                    return Convert.ToBase64String(aTTACHMENT_FILE);
+                    return new AttachmentResponse();
                 }
-                return string.Empty;
+                else
+                    throw new Exception("No Attachment found.");
             }
             catch (Exception ex)
             {
@@ -1273,7 +1275,6 @@ namespace AREML.EPOD.Data.Repositories
             }
             catch (Exception ex)
             {
-                throw ex;
                 throw ex;
             }
         }

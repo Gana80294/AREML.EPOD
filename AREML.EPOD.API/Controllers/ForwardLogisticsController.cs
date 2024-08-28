@@ -1,7 +1,10 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.ForwardLogistics;
+using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Interfaces.IRepositories;
+using iTextSharp.text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -234,6 +237,11 @@ namespace AREML.EPOD.API.Controllers
             return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> DowloadPODDocument(int attachmentID)
+        {
+            return Ok(await _forwardRepository.DowloadPODDocument(attachmentID));
+        }
 
 
         #region SAP integration
@@ -262,6 +270,33 @@ namespace AREML.EPOD.API.Controllers
         public async Task<IActionResult> InvoiceCancellation(string Invoiceno)
         {
             return Ok(await this._forwardRepository.InvoiceCancellation(Invoiceno));
+        }
+        #endregion
+
+        #region Acknowledgment
+
+        [HttpPost]
+        public async Task<IActionResult> ConfirmInvoice()
+        {
+            return Ok(await _forwardRepository.ConfirmInvoice());
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ConfirmInvoiceDetails()
+        {
+            return Ok(await _forwardRepository.ConfirmInvoiceDetails());
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ConfirmQty(InvoiceUpdate invoiceUpdate)
+        {
+            return Ok(await _forwardRepository.ConfirmQty(invoiceUpdate));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> ReuploadLR()
+        {
+            return Ok(await _forwardRepository.ReUploadLR());
         }
         #endregion
     }
