@@ -31,7 +31,7 @@ namespace AREML.EPOD.Data.Repositories
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly NetworkCredentials _networkCredential;
 
-        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser,IHttpContextAccessor httpContext)
+        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser, IHttpContextAccessor httpContext)
         {
             this._dbContext = authContext;
             this._excelHelper = excel;
@@ -214,7 +214,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-      
+
         public async Task<List<Invoice_Header_View>> FilterInvoiceDetailByUser(FilterClass filterClass)
         {
             try
@@ -333,12 +333,11 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
-
-        public async Task<HttpResponseMessage> DownloadInvoiceDetailByUser(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetailByUser(FilterClass filterClass)
         {
             try
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                //var response = new HttpResponseMessage(HttpStatusCode.OK);
                 CreateTempFolder();
                 string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -394,33 +393,44 @@ namespace AREML.EPOD.Data.Repositories
                         header.SECTOR_DESCRIPTION = Result.Sector;
                     }
                 }
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Invoice details_{dtstr1}.xlsx";
-                var FilePath = Path.Combine(TempFolder, FileNm);
-                if (System.IO.File.Exists(FilePath))
-                {
-                    System.GC.Collect();
-                    System.GC.WaitForPendingFinalizers();
-                    System.IO.File.Delete(FilePath);
-                }
-                FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
-                workbook.Write(stream);
-                byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
-                var statuscode = HttpStatusCode.OK;
-                response.Content = new ByteArrayContent(fileByteArray);
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
 
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
 
-                return response;
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"Invoice details_{dtstr1}.xlsx";
+                //var FilePath = Path.Combine(TempFolder, FileNm);
+                //if (System.IO.File.Exists(FilePath))
+                //{
+                //    System.GC.Collect();
+                //    System.GC.WaitForPendingFinalizers();
+                //    System.IO.File.Delete(FilePath);
+                //}
+                //FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
+                //workbook.Write(stream);
+                //byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
+                //var statuscode = HttpStatusCode.OK;
+                //response.Content = new ByteArrayContent(fileByteArray);
+                //response.Content.Headers.Add("x-filename", FileNm);
+                //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                //ContentDispositionHeaderValue contentDisposition = null;
+
+                //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                //{
+                //    response.Content.Headers.ContentDisposition = contentDisposition;
+                //}
+
+                //return response;
             }
             catch (Exception ex)
             {
@@ -731,7 +741,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 try
                 {
-                    List<P_INV_ITEM_DETAIL> items =await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
+                    List<P_INV_ITEM_DETAIL> items = await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
 
                     foreach (P_INV_ITEM_DETAIL ite in items)
                     {
@@ -741,7 +751,7 @@ namespace AREML.EPOD.Data.Repositories
                             ite.STATUS = "Confirmed";
                         }
                     }
-                    P_INV_HEADER_DETAIL head =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
+                    P_INV_HEADER_DETAIL head = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
                     if (head != null)
                     {
                         if (head.INV_DATE.Value.Date <= invoiceUpdation.VEHICLE_REPORTED_DATE.Date)
@@ -783,7 +793,7 @@ namespace AREML.EPOD.Data.Repositories
             var doc = await _dbContext.P_INV_ATTACHMENT.FirstOrDefaultAsync(t => t.HEADER_ID == headerId);
             if (doc == null)
             {
-                throw new Exception("Not Found");
+                return new AttachmentStatus { AttachmentId = 0 };
             }
             else
             {
@@ -1758,7 +1768,7 @@ namespace AREML.EPOD.Data.Repositories
             var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(t => t.ODIN == invoiceNumber || t.INV_NO == invoiceNumber);
             if (header == null)
             {
-               throw new Exception("Invoice not found");
+                throw new Exception("Invoice not found");
             }
             else
             {
@@ -1767,7 +1777,7 @@ namespace AREML.EPOD.Data.Repositories
                     Id = doc.Id,
                     FileName = doc.FileName,
                     FileType = doc.FileType,
-                    CreatedBy =  (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
+                    CreatedBy = (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
                     CreatedOn = doc.CreatedOn
                 }).ToListAsync();
                 return documentHistories;
@@ -2581,7 +2591,7 @@ namespace AREML.EPOD.Data.Repositories
                     string userID = request.Form["UserID"].ToString();
                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == headerID && x.IS_ACTIVE);
                     IFormFileCollection postedfiles = request.Form.Files;
-                    if(postedfiles.Count > 0)
+                    if (postedfiles.Count > 0)
                     {
                         var ext = postedfiles[0].FileName.ToString().Split('.')[postedfiles[0].FileName.ToString().Split('.').Length - 1];
                         fileName = header.HEADER_ID.ToString().Replace("/", "_") + "_" + header.CUSTOMER + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
@@ -2713,7 +2723,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                P_INV_HEADER_DETAIL inv_header =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
+                P_INV_HEADER_DETAIL inv_header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
                 if (inv_header == null)
                 {
                     throw new Exception($"Invoice not found!!!");
@@ -2760,7 +2770,7 @@ namespace AREML.EPOD.Data.Repositories
                             throw new Exception($"PODConfirmation/SalesReturns: Material - {material.MaterialCode} Not Found!!!");
                         }
                     }
-                    var tCreditInvoices =await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
+                    var tCreditInvoices = await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
                     var slConfirmationList = new List<SalesReturnStatusConfirmation>();
                     foreach (var tCI in tCreditInvoices)
                     {
@@ -2793,20 +2803,20 @@ namespace AREML.EPOD.Data.Repositories
             try
             {
                 var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                              join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                              join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                              where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                              select new
-                              {
-                                  tb2.ITEM_ID,
-                                  tb.CRID,
-                                  tb2.MATERIAL_CODE,
-                                  tb2.QUANTITY,
-                                  tb2.RECEIVED_QUANTITY,
-                                  tb.CreditInvoice,
-                                  tb.Qty,
-                                  tb.IsActive
-                              }
+                                    join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                    join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                    where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                    select new
+                                    {
+                                        tb2.ITEM_ID,
+                                        tb.CRID,
+                                        tb2.MATERIAL_CODE,
+                                        tb2.QUANTITY,
+                                        tb2.RECEIVED_QUANTITY,
+                                        tb.CreditInvoice,
+                                        tb.Qty,
+                                        tb.IsActive
+                                    }
                               ).FirstOrDefaultAsync();
 
                 if (slslog != null)
@@ -2844,8 +2854,8 @@ namespace AREML.EPOD.Data.Repositories
             try
             {
                 P_INV_HEADER_DETAIL result = await (from td in _dbContext.P_INV_HEADER_DETAIL
-                                              where td.INV_NO == Invoiceno && td.IS_ACTIVE
-                                              select td).FirstOrDefaultAsync();
+                                                    where td.INV_NO == Invoiceno && td.IS_ACTIVE
+                                                    select td).FirstOrDefaultAsync();
                 if (result != null)
                 {
                     result.IS_ACTIVE = false;
@@ -2855,27 +2865,27 @@ namespace AREML.EPOD.Data.Repositories
                 else
                 {
 
-                    var slslog =await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                                  join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                                  join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                                  where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                                  select new
-                                  {
-                                      tb1.HEADER_ID,
-                                      tb2.ITEM_ID,
-                                      tb.CRID,
-                                      tb2.MATERIAL_CODE,
-                                      tb2.QUANTITY,
-                                      tb2.RECEIVED_QUANTITY,
-                                      tb.CreditInvoice,
-                                      tb.Qty,
-                                      tb.IsActive
-                                  }
+                    var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
+                                        join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                        join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                        where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                        select new
+                                        {
+                                            tb1.HEADER_ID,
+                                            tb2.ITEM_ID,
+                                            tb.CRID,
+                                            tb2.MATERIAL_CODE,
+                                            tb2.QUANTITY,
+                                            tb2.RECEIVED_QUANTITY,
+                                            tb.CreditInvoice,
+                                            tb.Qty,
+                                            tb.IsActive
+                                        }
                               ).FirstOrDefaultAsync();
 
                     if (slslog != null)
                     {
-                        var itm =await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
+                        var itm = await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
                         var ls = itm.REMARKS.Split(',').ToList();
 
                         for (int i = 0; i < ls.Count; i++)
