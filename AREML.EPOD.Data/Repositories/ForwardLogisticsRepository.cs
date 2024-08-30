@@ -17,6 +17,7 @@ using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Mail;
 
 
 namespace AREML.EPOD.Data.Repositories
@@ -1805,18 +1806,49 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                P_INV_ATTACHMENT p_INV_ATTACHMENT = await (_dbContext.P_INV_ATTACHMENT).Where(x => x.ATTACHMENT_ID == attachmentID).FirstOrDefaultAsync();
-                if (p_INV_ATTACHMENT != null && p_INV_ATTACHMENT.ATTACHMENT_FILE.Length != 0)
+                string SharedFolderUserName = _networkCredential.SharedFolderUserName;
+                string SharedFolderPassword = _networkCredential.SharedFolderPassword;
+                string SharedFolderDomain = _networkCredential.SharedFolderDomain;
+
+                var att = await (_dbContext.P_INV_ATTACHMENT).Where(x => x.ATTACHMENT_ID == attachmentID).FirstOrDefaultAsync();
+                if (att != null)
                 {
-                    return new AttachmentResponse()
+
+                    try
                     {
-                        FileName = p_INV_ATTACHMENT.ATTACHMENT_NAME,
-                        FileContent = p_INV_ATTACHMENT.ATTACHMENT_FILE,
-                        Extension = p_INV_ATTACHMENT.DOCUMENT_TYPE
-                    };
+                        using (var impersonationHelper = new ImpersonationHelper(SharedFolderUserName, SharedFolderDomain, SharedFolderPassword))
+                        {
+                            var fileContent = File.ReadAllBytes(att.FILE_PATH);
+                            var attResponse = new AttachmentResponse()
+                            {
+                                FileName = att.FILE_NAME,
+                                FileContent = fileContent,
+                                Extension = "application/pdf"
+                            };
+                            return attResponse;
+                        }
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (IOException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.InnerException != null)
+                        {
+                            throw new Exception("Inner exception: " + ex.InnerException.Message);
+                        }
+                        throw ex;
+                    }
                 }
                 else
-                    throw new Exception("No Attachment found.");
+                {
+                    throw new Exception("Unable to find the attachment");
+                }
             }
             catch (Exception ex)
             {
@@ -2277,6 +2309,7 @@ namespace AREML.EPOD.Data.Repositories
                                         await _dbContext.SaveChangesAsync();
                                         await transaction.CommitAsync();
                                         response.Message = $"Invoice {head.INV_NO} Confirmed";
+                                        LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
                                         return response;
                                     }
                                     else
@@ -2459,6 +2492,7 @@ namespace AREML.EPOD.Data.Repositories
                                         await _dbContext.SaveChangesAsync();
                                         await transaction.CommitAsync();
                                         response.Message = $"Invoice {head.INV_NO} Confirmed";
+                                        LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
                                         return response;
                                     }
                                     else
@@ -2659,6 +2693,7 @@ namespace AREML.EPOD.Data.Repositories
                             }
                         }
                     }
+                    await transaction.CommitAsync();
                     return true;
                 }
                 catch (Exception)
