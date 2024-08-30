@@ -239,7 +239,7 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> DowloadPODDocument(int attachmentID)
+        public async Task<IActionResult> DownloadPODDocument(int attachmentID)
         {
             return Ok(await _forwardRepository.DowloadPODDocument(attachmentID));
         }
