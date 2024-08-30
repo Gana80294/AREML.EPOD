@@ -1,9 +1,14 @@
-﻿using AREML.EPOD.Core.Entities.Logs;
+﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using NPOI.SS.Formula.Functions;
+using static Microsoft.ApplicationInsights.MetricDimensionNames.TelemetryContext;
+using System.Net.NetworkInformation;
+using System.Web.WebPages;
 
 namespace AREML.EPOD.API.Controllers
 {
@@ -207,7 +212,6 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpGet]
-        [Route("GetUserManual")]
         public async Task<IActionResult> GetUserManual()
         {
             return Ok(await _masterRepository.GetUserManual());
@@ -640,6 +644,32 @@ namespace AREML.EPOD.API.Controllers
         }
 
 
+        #endregion
+
+        #region User Action History
+        [HttpPost]
+        public async Task<IActionResult> CreateUserActionHistory(UserActionHistory log)
+        {
+            return Ok(await _masterRepository.CreateUserActionHistory(log));
+        }
+
+        [HttpPost]
+        public IActionResult FilterUserActionHistories(ActionHistoryFilter filter)
+        {
+            return Ok(_masterRepository.FilterUserActionHistories(filter));
+        }
+        [HttpPost]
+        public async Task<IActionResult> DownloadActionHistoryLog(ActionHistoryFilter filter)
+        {
+            var fileContent = await this._masterRepository.DownloadActionHistoryLog(filter);
+            if (fileContent == null || fileContent.Length == 0)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"Action_History_Log_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
         #endregion
     }
 }

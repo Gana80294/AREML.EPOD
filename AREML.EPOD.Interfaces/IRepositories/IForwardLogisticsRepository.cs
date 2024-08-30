@@ -21,7 +21,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<List<Invoice_Header_View>> GetOpenAndSavedInvoiceDetailByUser(string UserCode);
         Task<List<Invoice_Header_View>> FilterInvoiceDetailByUser(FilterClass filterClass);
 
-        Task<HttpResponseMessage> DownloadInvoiceDetailByUser(FilterClass filterClass);
+        Task<byte[]> DownloadInvoiceDetailByUser(FilterClass filterClass);
         Task<List<Invoice_Header_View>> GetConfirmedInvoiceDetails(Guid UserID);
 
         Task<bool> ApproveSelectedInvoices(ApproverDetails approverDetails);

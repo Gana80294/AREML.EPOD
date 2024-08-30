@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities.Logs;
+﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
 using Microsoft.AspNetCore.Http;
@@ -141,6 +142,13 @@ namespace AREML.EPOD.Interfaces.IRepositories
 
         Task<bool> UnlockUser(Guid UserId);
         List<UserWithRole> GetAllLockedUsers();
+        #endregion
+
+        #region User Action History
+
+        Task<bool> CreateUserActionHistory(UserActionHistory log);
+        List<UserActionHistoryView> FilterUserActionHistories(ActionHistoryFilter filter);
+        Task<byte[]> DownloadActionHistoryLog(ActionHistoryFilter filter);
         #endregion
     }
 }
