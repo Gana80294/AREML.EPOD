@@ -1,4 +1,5 @@
 ﻿using AREML.EPOD.Core.Entities;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
@@ -31,12 +32,13 @@ namespace AREML.EPOD.Data.Repositories
         private IMapper _mapper;
         private int _tokenTimespan = 0;
 
-        public MasterRepository(AuthContext ctx, IConfiguration configuration, PasswordEncryptor passwordEncryptor,IMapper mapper)
+        public MasterRepository(AuthContext ctx, IConfiguration configuration, PasswordEncryptor passwordEncryptor, IMapper mapper, ExcelHelper excelHelper)
         {
             _ctx = ctx;
             _configuration = configuration;
             _passwordEncryptor = passwordEncryptor;
             _mapper = mapper;
+            _excelHelper = excelHelper;
         }
 
 
@@ -57,10 +59,10 @@ namespace AREML.EPOD.Data.Repositories
                     var user = _mapper.Map<User>(userWithRole);
                     user.UserID = Guid.NewGuid();
                     user.Password = _passwordEncryptor.Encrypt(userWithRole.Password, true);
-                    user.CreatedBy=userWithRole.CreatedBy;
+                    user.CreatedBy = userWithRole.CreatedBy;
                     user.IsActive = true;
                     user.IsLocked = false;
-                    var result=_ctx.Users.Add(user);
+                    var result = _ctx.Users.Add(user);
                     await _ctx.SaveChangesAsync();
                     var creationErrorLog = _mapper.Map<UserCreationErrorLog>(userWithRole);
                     creationErrorLog.LogReson = "User created Successfully ";
@@ -192,7 +194,7 @@ namespace AREML.EPOD.Data.Repositories
                                         };
 
                                         var r = _ctx.UserRoleMaps.Add(UserRole);
-                                        var errorLog = _mapper.Map<UserCreationErrorLog>(userData); 
+                                        var errorLog = _mapper.Map<UserCreationErrorLog>(userData);
                                         errorLog.RoleName = "Customer";
                                         errorLog.LogReson = $"Customer {userData.UserCode} inserted successfully";
                                         _ctx.UserCreationErrorLogs.Add(errorLog);
@@ -202,7 +204,7 @@ namespace AREML.EPOD.Data.Repositories
                                     }
                                     else
                                     {
-                                        var errorLog = _mapper.Map<UserCreationErrorLog>(userData);                                       
+                                        var errorLog = _mapper.Map<UserCreationErrorLog>(userData);
                                         errorLog.RoleName = "Customer";
                                         errorLog.LogReson = $"Customer already exist";
                                         _ctx.UserCreationErrorLogs.Add(errorLog);
@@ -579,7 +581,7 @@ namespace AREML.EPOD.Data.Repositories
                     return true;
                 }
                 else
-                {                    
+                {
                     throw new Exception("No user has been assigned to this sales group");
                 }
             }
@@ -747,7 +749,7 @@ namespace AREML.EPOD.Data.Repositories
                                      select tb.PlantCode).ToList(),
                         Email = record.Email,
                         ContactNumber = record.ContactNumber,
-                        Password =_passwordEncryptor.Decrypt(record.Password, true),
+                        Password = _passwordEncryptor.Decrypt(record.Password, true),
                         IsActive = record.IsActive,
                         CreatedOn = record.CreatedOn,
                         ModifiedOn = record.ModifiedOn,
@@ -835,7 +837,7 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                    throw new Exception("Role with same name already exist");                   
+                    throw new Exception("Role with same name already exist");
                 }
                 return true;
             }
@@ -936,7 +938,7 @@ namespace AREML.EPOD.Data.Repositories
         public async Task<bool> DeleteRole(RoleWithApp roleWithApp)
         {
             try
-            {              
+            {
                 Role role1 = (from tb in _ctx.Roles
                               where tb.IsActive && tb.RoleID == roleWithApp.RoleID
                               select tb).FirstOrDefault();
@@ -954,13 +956,13 @@ namespace AREML.EPOD.Data.Repositories
                 });
                 await _ctx.SaveChangesAsync();
                 return true;
-              
+
             }
             catch (Exception ex)
             {
                 throw ex;
             }
-           
+
         }
         #endregion
 
@@ -983,14 +985,14 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                   throw new Exception("App with same name already exist");
+                    throw new Exception("App with same name already exist");
                 }
 
             }
             catch (Exception ex)
             {
                 throw ex;
-            }            
+            }
         }
 
         public List<App> GetAllApps()
@@ -1029,13 +1031,13 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                    throw new Exception("App with same name already exist");                    
+                    throw new Exception("App with same name already exist");
                 }
             }
             catch (Exception ex)
             {
                 throw ex;
-            }          
+            }
         }
 
         public async Task<App> DeleteApp(App App)
@@ -1066,7 +1068,7 @@ namespace AREML.EPOD.Data.Repositories
             using (var transaction = _ctx.Database.BeginTransaction())
             {
                 try
-                {          
+                {
                     if (files.Count > 0)
                     {
                         IFormFile postedFile = files.FirstOrDefault();
@@ -1214,7 +1216,7 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                    throw new Exception ("Reason with same name already exist");
+                    throw new Exception("Reason with same name already exist");
                 }
 
             }
@@ -1222,7 +1224,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 throw ex;
             }
-           
+
         }
 
         public async Task<List<Reason>> CreateBulkReason(List<ReasonData> reasonDatas)
@@ -1253,7 +1255,7 @@ namespace AREML.EPOD.Data.Repositories
                     {
                         throw new Exception("Reason with same name already exist");
                     }
-                  
+
                 }
                 return addedReasons;
             }
@@ -1299,14 +1301,14 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                   throw new Exception("Reason with same name already exist");
+                    throw new Exception("Reason with same name already exist");
                 }
             }
             catch (Exception ex)
             {
                 throw ex;
             }
-           
+
         }
 
         public async Task<Reason> DeleteReason(Reason Reason)
@@ -1335,7 +1337,7 @@ namespace AREML.EPOD.Data.Repositories
         public async Task<Organization> CreateOrganization(Organization Organization)
         {
             try
-            {   
+            {
                 Organization Organization1 = (from tb in _ctx.Organizations
                                               where tb.IsActive && tb.OrganizationCode == Organization.OrganizationCode
                                               select tb).FirstOrDefault();
@@ -1349,7 +1351,7 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                   throw new Exception ("Organization with same code already exist");
+                    throw new Exception("Organization with same code already exist");
                 }
 
             }
@@ -1468,7 +1470,7 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                   throw new Exception("CustomerGroup with same code already exist");
+                    throw new Exception("CustomerGroup with same code already exist");
                 }
 
             }
@@ -1685,7 +1687,7 @@ namespace AREML.EPOD.Data.Repositories
                                      select tb.PlantCode).ToList(),
                         Email = record.Email,
                         ContactNumber = record.ContactNumber,
-                        Password =_passwordEncryptor.Decrypt(record.Password, true),
+                        Password = _passwordEncryptor.Decrypt(record.Password, true),
                         IsActive = record.IsActive,
                         CreatedOn = record.CreatedOn,
                         ModifiedOn = record.ModifiedOn,
@@ -1838,7 +1840,7 @@ namespace AREML.EPOD.Data.Repositories
                         await _ctx.SaveChangesAsync();
                         addedGroups.Add(customerGroup);
                         LogWriter.WriteToFile("Master/CreateBulkCustomergroup:- " + cg.SLSGroupCode + "inserted successfully");
-                       
+
                     }
                     else
                     {
@@ -1920,7 +1922,7 @@ namespace AREML.EPOD.Data.Repositories
                                      select tb.PlantCode).ToList(),
                         Email = record.Email,
                         ContactNumber = record.ContactNumber,
-                        Password =_passwordEncryptor.Decrypt(record.Password, true),
+                        Password = _passwordEncryptor.Decrypt(record.Password, true),
                         IsActive = record.IsActive,
                         CreatedOn = record.CreatedOn,
                         ModifiedOn = record.ModifiedOn,
@@ -1988,7 +1990,7 @@ namespace AREML.EPOD.Data.Repositories
                 }
                 else
                 {
-                   throw new Exception("Plant with same code already exist");
+                    throw new Exception("Plant with same code already exist");
                 }
 
             }
@@ -1996,7 +1998,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 throw ex;
             }
-        
+
         }
 
         public List<PlantWithOrganization> GetAllPlants()
@@ -2105,7 +2107,7 @@ namespace AREML.EPOD.Data.Repositories
                             };
 
                 // Execute the query and convert the result to a list
-                List<PlantWithOrganization>  PlantWithOrganizationList = query.Distinct().ToList();
+                List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
 
                 return PlantWithOrganizationList;
             }
@@ -2152,7 +2154,7 @@ namespace AREML.EPOD.Data.Repositories
                         IsActive = true,
                         CreatedOn = DateTime.Now
                     };
-                    var r1 = _ctx.PlantOrganizationMaps.Add(plantOrganizationMap);                    
+                    var r1 = _ctx.PlantOrganizationMaps.Add(plantOrganizationMap);
                 }
                 await _ctx.SaveChangesAsync();
             }
@@ -2183,7 +2185,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 throw ex;
             }
-          
+
         }
 
         public List<PlantOrganizationMap> GetAllPlantOrganizationMaps()
@@ -2315,7 +2317,7 @@ namespace AREML.EPOD.Data.Repositories
             catch (Exception ex)
             {
                 throw ex;
-            }         
+            }
         }
 
         #endregion
@@ -2330,7 +2332,7 @@ namespace AREML.EPOD.Data.Repositories
                              select tb).FirstOrDefault();
                 if (user != null)
                 {
-                    string DecryptedPassword =_passwordEncryptor.Decrypt(user.Password, true);
+                    string DecryptedPassword = _passwordEncryptor.Decrypt(user.Password, true);
                     if (DecryptedPassword == changePassword.CurrentPassword)
                     {
                         string DefaultPassword = _configuration.GetSection("AppSettings")["DefaultPassword"];
@@ -2345,7 +2347,7 @@ namespace AREML.EPOD.Data.Repositories
                             user.SecondLastPassword = user.LastPassword;
                             user.LastPassword = user.Password;
 
-                            user.Password =_passwordEncryptor.Encrypt(changePassword.NewPassword, true);
+                            user.Password = _passwordEncryptor.Encrypt(changePassword.NewPassword, true);
                             user.IsActive = true;
                             user.IsLocked = false;
                             user.ModifiedOn = DateTime.Now;
@@ -2369,7 +2371,7 @@ namespace AREML.EPOD.Data.Repositories
             catch (Exception ex)
             {
                 throw ex;
-            }           
+            }
         }
 
         public async Task<bool> SendResetLinkToMail(EmailModel emailModel)
@@ -2387,7 +2389,7 @@ namespace AREML.EPOD.Data.Repositories
                     {
                         throw new Exception("User account is locked..");
                     }
-                    string code =_passwordEncryptor.Encrypt(user.UserID.ToString() + '|' + user.UserName + '|' + ExpireDateTime, true);
+                    string code = _passwordEncryptor.Encrypt(user.UserID.ToString() + '|' + user.UserName + '|' + ExpireDateTime, true);
 
                     bool sendresult = await _emailHelper.SendMail(HttpUtility.UrlEncode(code), user.UserName, user.Email, null, "", user.UserID.ToString(), emailModel.siteURL);
                     if (sendresult)
@@ -2424,7 +2426,7 @@ namespace AREML.EPOD.Data.Repositories
                         {
                             throw ex;
                         }
-                      //  return Content(HttpStatusCode.OK, string.Format("Reset password link sent successfully to {0}", user.Email));
+                        //  return Content(HttpStatusCode.OK, string.Format("Reset password link sent successfully to {0}", user.Email));
                     }
                     else
                     {
@@ -2516,15 +2518,15 @@ namespace AREML.EPOD.Data.Repositories
             string[] decryptedArray = new string[3];
             string result = string.Empty;
             try
-            {               
+            {
                 try
                 {
-                    result =_passwordEncryptor.Decrypt(forgotPassword.Token, true);
+                    result = _passwordEncryptor.Decrypt(forgotPassword.Token, true);
                 }
                 catch
                 {
-                   throw new Exception("Invalid token!");
-                   
+                    throw new Exception("Invalid token!");
+
                 }
                 if (result.Contains('|') && result.Split('|').Length == 3)
                 {
@@ -2561,7 +2563,7 @@ namespace AREML.EPOD.Data.Repositories
                                 user.SecondLastPassword = user.LastPassword;
                                 user.LastPassword = user.Password;
 
-                                user.Password =_passwordEncryptor.Encrypt(forgotPassword.NewPassword, true);
+                                user.Password = _passwordEncryptor.Encrypt(forgotPassword.NewPassword, true);
                                 user.IsActive = true;
                                 user.ModifiedOn = DateTime.Now;
                                 await _ctx.SaveChangesAsync();
@@ -2623,7 +2625,7 @@ namespace AREML.EPOD.Data.Repositories
                                 if (!history.IsUsed)
                                 {
                                     // Updating Password
-                                    user.Password =_passwordEncryptor.Encrypt(forgotPassword.NewPassword, true);
+                                    user.Password = _passwordEncryptor.Encrypt(forgotPassword.NewPassword, true);
                                     user.IsActive = true;
                                     user.ModifiedOn = DateTime.Now;
                                     await _ctx.SaveChangesAsync();
@@ -2773,7 +2775,7 @@ namespace AREML.EPOD.Data.Repositories
                 {
                     if (sMSOTP.OTPExpiredOn > DateTime.Now)
                     {
-                        string encryptedPassword =_passwordEncryptor.Encrypt(oTPBody.newPassword, true);
+                        string encryptedPassword = _passwordEncryptor.Encrypt(oTPBody.newPassword, true);
                         User usr = _ctx.Users.FirstOrDefault(k => k.UserID == oTPBody.UserGuid);
                         usr.FourthLastPassword = usr.ThirdLastPassword;
                         usr.ThirdLastPassword = usr.SecondLastPassword;
@@ -2869,6 +2871,145 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
+
+        #endregion
+
+        #region User Action History
+        public async Task<bool> CreateUserActionHistory(UserActionHistory log)
+        {
+            try
+            {
+                _ctx.UserActionHistories.Add(log);
+                await _ctx.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogWriter.WriteToFile("Master/CreateUserActionHistory/Exception:- " + ex.Message, ex);
+                throw ex;
+            }
+        }
+
+        public List<UserActionHistoryView> FilterUserActionHistories(ActionHistoryFilter filter)
+        {
+            try
+            {
+                bool isFromDate = filter.StartDate.HasValue;
+                bool isEndDate = filter.EndDate.HasValue;
+                bool isUserName = !string.IsNullOrEmpty(filter.UserName);
+                bool isInvoiceNumber = !string.IsNullOrEmpty(filter.InvoiceNumber);
+                var logs = (from tb in _ctx.UserActionHistories
+                            join tb1 in _ctx.P_INV_HEADER_DETAIL on tb.TransID equals tb1.HEADER_ID
+                            where
+                          (
+                          (!isFromDate || tb1.INV_DATE.Value.Date >= filter.StartDate.Value.Date) &&
+                          (!isEndDate || tb1.INV_DATE.Value.Date <= filter.EndDate.Value.Date) &&
+                          (!isUserName || tb.UserName.ToLower().Contains(filter.UserName.ToLower())) &&
+                          (!isInvoiceNumber || (tb1.INV_NO == filter.InvoiceNumber || tb1.ODIN == filter.InvoiceNumber)))
+                            select new UserActionHistoryView
+                            {
+                                InvoiceNumber = isInvoiceNumber ? tb1.ODIN == filter.InvoiceNumber ? tb1.ODIN : tb1.INV_NO : tb1.ODIN,
+                                UserName = tb.UserName,
+                                IpAddress = tb.IpAddress,
+                                Location = tb.Location,
+                                Action = tb.Action,
+                                ChangesDetected = tb.ChangesDetected,
+                                DateTime = tb.DateTime
+                            }).ToList();
+                return logs;
+            }
+            catch (Exception ex)
+            {
+                LogWriter.WriteToFile("Master/GetUserActionHistories/Exception:- " + ex.Message, ex);
+                throw ex;
+            }
+        }
+
+        public async Task<byte[]> DownloadActionHistoryLog(ActionHistoryFilter filter)
+        {
+            try
+            {
+                CreateTempFolder();
+                string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+                bool isFromDate = filter.StartDate.HasValue;
+                bool isEndDate = filter.EndDate.HasValue;
+                bool isUserName = !string.IsNullOrEmpty(filter.UserName);
+                bool isInvoiceNumber = !string.IsNullOrEmpty(filter.InvoiceNumber);
+                var logs = await (from tb in _ctx.UserActionHistories
+                                  join tb1 in _ctx.P_INV_HEADER_DETAIL on tb.TransID equals tb1.HEADER_ID
+                                  where
+                                (!isFromDate || tb.DateTime.Date >= filter.StartDate.Value.Date) &&
+                                (!isEndDate || tb.DateTime.Date <= filter.EndDate.Value.Date) &&
+                                (!isUserName || tb.UserName.ToLower().Contains(filter.UserName)) &&
+                               (!isInvoiceNumber || (tb1.INV_NO.ToLower() == filter.InvoiceNumber.ToLower() || tb1.ODIN.ToLower() == filter.InvoiceNumber.ToLower()))
+                                  select new UserActionHistoryView
+                                  {
+                                      InvoiceNumber = tb1.ODIN,
+                                      UserName = tb.UserName,
+                                      IpAddress = tb.IpAddress,
+                                      Location = tb.Location,
+                                      Action = tb.Action,
+                                      ChangesDetected = tb.ChangesDetected,
+                                      DateTime = tb.DateTime
+                                  }).ToListAsync();
+
+                using (var workbook = new XSSFWorkbook())
+                {
+                    ISheet sheet = _excelHelper.CreateActionHistoryWorksheet(logs, true, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
+                }
+
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = CreateActionHistoryWorksheet(logs, true, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"ActionHistories_{dtstr1}.xlsx";
+                //var FilePath = Path.Combine(TempFolder, FileNm);
+                //if (System.IO.File.Exists(FilePath))
+                //{
+                //    System.GC.Collect();
+                //    System.GC.WaitForPendingFinalizers();
+                //    System.IO.File.Delete(FilePath);
+                //}
+                //FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
+                //workbook.Write(stream);
+                //byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
+
+            }
+            catch (Exception ex)
+            {
+                LogWriter.WriteToFile("Master/DownloadActionHistoryLog/Exception:- " + ex.Message, ex);
+                throw ex;
+            }
+        }
+
+        public void CreateTempFolder()
+        {
+            string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
+            if (!Directory.Exists(TempFolder))
+            {
+                Directory.CreateDirectory(TempFolder);
+            }
+            else
+            {
+                string[] files = Directory.GetFiles(TempFolder);
+                foreach (string file in files)
+                {
+                    FileInfo fi = new FileInfo(file);
+                    if (fi.CreationTime < DateTime.Now.AddMinutes(-30))
+                    {
+                        System.GC.Collect();
+                        System.GC.WaitForPendingFinalizers();
+                        fi.Delete();
+                    }
+                }
+            }
+        }
+
 
         #endregion
 

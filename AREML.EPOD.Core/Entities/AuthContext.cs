@@ -73,6 +73,11 @@ namespace AREML.EPOD.Core.Entities
              .HasIndex(p => new { p.ORGANIZATION, p.DIVISION, p.PLANT, p.INV_NO, p.ODIN, p.INV_DATE, p.CUSTOMER, p.CUSTOMER_NAME, p.LR_NO, p.STATUS });
             modelBuilder.Entity<P_INV_ITEM_DETAIL>()
             .HasIndex(p => new { p.HEADER_ID });
+
+
+            modelBuilder.HasSequence<int>("IncrSLSId", schema: "dbo")
+            .StartsAt(1)
+            .IncrementsBy(1);
         }
 
 

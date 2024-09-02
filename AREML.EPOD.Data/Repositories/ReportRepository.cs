@@ -595,9 +595,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null)
+        public async Task<byte[]> DownloadInvoiceDetails(Guid UserID, string Status, DateTime? StartDate = null, DateTime? EndDate = null, string InvoiceNumber = null, string Organization = null, string Division = null, string Plant = null, string CustomerName = null)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateTempFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -696,35 +696,18 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME
                                     }).OrderBy(x => x.INV_NO).ToListAsync();
 
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Invoice details_{dtstr1}.xlsx";
-                var FilePath = Path.Combine(TempFolder, FileNm);
-                if (System.IO.File.Exists(FilePath))
-                {
-                    System.GC.Collect();
-                    System.GC.WaitForPendingFinalizers();
-                    System.IO.File.Delete(FilePath);
-                }
-                FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
 
-                workbook.Write(stream);
-                byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
-                var statuscode = HttpStatusCode.OK;
-                response = new HttpResponseMessage(statuscode);
-                response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
-
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
 
-                return response;
+
             }
             catch (Exception ex)
             {
@@ -732,9 +715,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetails(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetails(FilterClass filterClass)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateTempFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -889,28 +872,15 @@ namespace AREML.EPOD.Data.Repositories
                             header.SECTOR_DESCRIPTION = sector.Sector;
                         }
                     }
-
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                    MemoryStream stream = new MemoryStream();
-                    workbook.Write(stream);
-                    byte[] fileByteArray = stream.ToArray();
-                    var statuscode = HttpStatusCode.OK;
-                    response = new HttpResponseMessage(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    ContentDispositionHeaderValue contentDisposition = null;
-
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
-
-                    return response;
                 }
                 else
                 {
@@ -1029,27 +999,17 @@ namespace AREML.EPOD.Data.Repositories
                             header.SECTOR_DESCRIPTION = sector.Sector;
                         }
                     }
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                    MemoryStream stream = new MemoryStream();
-                    workbook.Write(stream);
-                    byte[] fileByteArray = stream.ToArray();
-                    var statuscode = HttpStatusCode.OK;
-                    response = new HttpResponseMessage(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    ContentDispositionHeaderValue contentDisposition = null;
 
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIworksheetReport(result, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
 
-                    return response;
                 }
             }
             catch (Exception ex)
@@ -1058,9 +1018,9 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<HttpResponseMessage> DownloadInvoiceDetailsForAutomation(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetailsForAutomation(FilterClass filterClass)
         {
-            HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            //HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
             CreateReportsFolder();
             string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -1073,89 +1033,78 @@ namespace AREML.EPOD.Data.Repositories
                 bool isStatus = filterClass.Status != null && filterClass.Status.Count > 0;
                 bool isFromDate = filterClass.StartDate.HasValue;
                 bool isEndDate = filterClass.EndDate.HasValue;
-                var result =await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                              join tb1 in _dbContext.P_INV_ITEM_DETAIL on tb.HEADER_ID equals tb1.HEADER_ID
-                              join tb2 in _dbContext.Organizations on tb.ORGANIZATION equals tb2.OrganizationCode
-                              where tb.IS_ACTIVE &&
-                              (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
-                              (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date))
-                              select new ReportInvoice
-                              {
-                                  HEADER_ID = tb.HEADER_ID,
-                                  INV_NO = tb.INV_NO,
-                                  ODIN = tb.ODIN,
-                                  ITEM_ID = tb1.ITEM_ID,
-                                  ITEM_NO = tb1.ITEM_NO,
-                                  INV_DATE = tb.INV_DATE,
-                                  INV_TYPE = tb.INV_TYPE,
-                                  CUSTOMER = tb.CUSTOMER,
-                                  CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                  ORGANIZATION = tb2.Description,
-                                  DIVISION = tb.DIVISION,
-                                  LR_NO = tb.LR_NO,
-                                  LR_DATE = tb.LR_DATE,
-                                  VEHICLE_NO = tb.VEHICLE_NO,
-                                  FWD_AGENT = tb.FWD_AGENT,
-                                  CARRIER = tb.CARRIER,
-                                  VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                  EWAYBILL_NO = tb.EWAYBILL_NO,
-                                  EWAYBILL_DATE = tb.EWAYBILL_DATE,
-                                  FREIGHT_ORDER = tb.FREIGHT_ORDER,
-                                  FREIGHT_ORDER_DATE = tb.FREIGHT_ORDER_DATE,
-                                  MATERIAL_CODE = tb1.MATERIAL_CODE,
-                                  MATERIAL_DESCRIPTION = tb1.MATERIAL_DESCRIPTION,
-                                  QUANTITY = tb1.QUANTITY,
-                                  RECEIVED_QUANTITY = tb1.RECEIVED_QUANTITY,
-                                  QUANTITY_UOM = tb1.QUANTITY_UOM,
-                                  PLANT = tb.PLANT,
-                                  PLANT_NAME = tb.PLANT_NAME,
-                                  OUTBOUND_DELIVERY = tb.OUTBOUND_DELIVERY,
-                                  OUTBOUND_DELIVERY_DATE = tb.OUTBOUND_DELIVERY_DATE,
-                                  ACTUAL_DISPATCH_DATE = tb.ACTUAL_DISPATCH_DATE,
-                                  PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                  VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                  ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                  POD_UPLOADE_STATUS = tb.STATUS,
-                                  TRANSIT_LEAD_TIME = tb.TRANSIT_LEAD_TIME,
-                                  CANC_INV_STATUS = tb.CANC_INV_STATUS,
-                                  STATUS = tb.STATUS,
-                                  CUSTOMER_DESTINATION = tb.CUSTOMER_DESTINATION,
-                                  CUSTOMER_GROUP = tb.CUSTOMER_GROUP,
-                                  CUSTOMER_GROUP_DESC = tb.CUSTOMER_GROUP_DESC,
-                                  GROSS_WEIGHT = tb.GROSS_WEIGHT,
-                                  PLANT_CODE = tb.PLANT_CODE,
-                                  SECTOR_DESCRIPTION = tb.SECTOR_DESCRIPTION,
-                                  REMARKS = tb1.REMARKS,
-                                  DISTANCE = tb.DISTANCE,
-                                  ITEM_WEIGHT = tb1.ITEM_WEIGHT,
-                                  TRACKING_LINK = tb.TRACKING_LINK,
-                                  DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                  TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                  TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                  DELIVERY_DATE = tb.DELIVERY_DATE,
-                                  DELIVERY_TIME = tb.DELIVERY_TIME
-                              }).OrderBy(x => x.INV_NO).ToListAsync();
+                var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
+                                    join tb1 in _dbContext.P_INV_ITEM_DETAIL on tb.HEADER_ID equals tb1.HEADER_ID
+                                    join tb2 in _dbContext.Organizations on tb.ORGANIZATION equals tb2.OrganizationCode
+                                    where tb.IS_ACTIVE &&
+                                    (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
+                                    (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date))
+                                    select new ReportInvoice
+                                    {
+                                        HEADER_ID = tb.HEADER_ID,
+                                        INV_NO = tb.INV_NO,
+                                        ODIN = tb.ODIN,
+                                        ITEM_ID = tb1.ITEM_ID,
+                                        ITEM_NO = tb1.ITEM_NO,
+                                        INV_DATE = tb.INV_DATE,
+                                        INV_TYPE = tb.INV_TYPE,
+                                        CUSTOMER = tb.CUSTOMER,
+                                        CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                        ORGANIZATION = tb2.Description,
+                                        DIVISION = tb.DIVISION,
+                                        LR_NO = tb.LR_NO,
+                                        LR_DATE = tb.LR_DATE,
+                                        VEHICLE_NO = tb.VEHICLE_NO,
+                                        FWD_AGENT = tb.FWD_AGENT,
+                                        CARRIER = tb.CARRIER,
+                                        VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                        EWAYBILL_NO = tb.EWAYBILL_NO,
+                                        EWAYBILL_DATE = tb.EWAYBILL_DATE,
+                                        FREIGHT_ORDER = tb.FREIGHT_ORDER,
+                                        FREIGHT_ORDER_DATE = tb.FREIGHT_ORDER_DATE,
+                                        MATERIAL_CODE = tb1.MATERIAL_CODE,
+                                        MATERIAL_DESCRIPTION = tb1.MATERIAL_DESCRIPTION,
+                                        QUANTITY = tb1.QUANTITY,
+                                        RECEIVED_QUANTITY = tb1.RECEIVED_QUANTITY,
+                                        QUANTITY_UOM = tb1.QUANTITY_UOM,
+                                        PLANT = tb.PLANT,
+                                        PLANT_NAME = tb.PLANT_NAME,
+                                        OUTBOUND_DELIVERY = tb.OUTBOUND_DELIVERY,
+                                        OUTBOUND_DELIVERY_DATE = tb.OUTBOUND_DELIVERY_DATE,
+                                        ACTUAL_DISPATCH_DATE = tb.ACTUAL_DISPATCH_DATE,
+                                        PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                        VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                        ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                        POD_UPLOADE_STATUS = tb.STATUS,
+                                        TRANSIT_LEAD_TIME = tb.TRANSIT_LEAD_TIME,
+                                        CANC_INV_STATUS = tb.CANC_INV_STATUS,
+                                        STATUS = tb.STATUS,
+                                        CUSTOMER_DESTINATION = tb.CUSTOMER_DESTINATION,
+                                        CUSTOMER_GROUP = tb.CUSTOMER_GROUP,
+                                        CUSTOMER_GROUP_DESC = tb.CUSTOMER_GROUP_DESC,
+                                        GROSS_WEIGHT = tb.GROSS_WEIGHT,
+                                        PLANT_CODE = tb.PLANT_CODE,
+                                        SECTOR_DESCRIPTION = tb.SECTOR_DESCRIPTION,
+                                        REMARKS = tb1.REMARKS,
+                                        DISTANCE = tb.DISTANCE,
+                                        ITEM_WEIGHT = tb1.ITEM_WEIGHT,
+                                        TRACKING_LINK = tb.TRACKING_LINK,
+                                        DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                        TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                        TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                        DELIVERY_DATE = tb.DELIVERY_DATE,
+                                        DELIVERY_TIME = tb.DELIVERY_TIME
+                                    }).OrderBy(x => x.INV_NO).ToListAsync();
 
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheetForAutomation(result, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Saved Invoice details_{dtstr1}.xlsx";
-                MemoryStream stream = new MemoryStream();
-                workbook.Write(stream);
-                byte[] fileByteArray = stream.ToArray();
-                var statuscode = HttpStatusCode.OK;
-                response = new HttpResponseMessage(statuscode);
-                response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
-
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheetForAutomation(result, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
-                return response;
             }
             catch (Exception ex)
             {

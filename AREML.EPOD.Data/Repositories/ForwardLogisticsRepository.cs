@@ -17,6 +17,8 @@ using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Mail;
+using System.Reflection.PortableExecutable;
 
 
 namespace AREML.EPOD.Data.Repositories
@@ -30,7 +32,7 @@ namespace AREML.EPOD.Data.Repositories
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly NetworkCredentials _networkCredential;
 
-        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser,IHttpContextAccessor httpContext)
+        public ForwardLogisticsRepository(IConfiguration configuration, AuthContext authContext, ExcelHelper excel, PdfCompresser pdfCompresser, IHttpContextAccessor httpContext)
         {
             this._dbContext = authContext;
             this._excelHelper = excel;
@@ -104,13 +106,23 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = td.DELIVERY_TIME
                                     }).Where(x => (isAllOrganization || Organizations.Any(y => y == x.ORGANIZATION)) && (isAllPlant || Plants.Any(y => y == x.PLANT)) && x.IS_ACTIVE).ToListAsync();
 
-                foreach (var res in result)
-                {
-                    var att = _dbContext.P_INV_ATTACHMENT.Where(x => x.HEADER_ID == res.HEADER_ID).FirstOrDefault();
-                    if (att != null)
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
                     {
-                        res.ATTACHMENT_ID = att.ATTACHMENT_ID;
-                        res.ATTACHMENT_NAME = att.ATTACHMENT_NAME;
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
                     }
                 }
                 return result;
@@ -196,13 +208,23 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_DATE = td.DELIVERY_DATE,
                                         DELIVERY_TIME = td.DELIVERY_TIME
                                     }).ToListAsync();
-                foreach (var res in result)
-                {
-                    var att = _dbContext.P_INV_ATTACHMENT.Where(x => x.HEADER_ID == res.HEADER_ID).FirstOrDefault();
-                    if (att != null)
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
                     {
-                        res.ATTACHMENT_ID = att.ATTACHMENT_ID;
-                        res.ATTACHMENT_NAME = att.ATTACHMENT_NAME;
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
                     }
                 }
                 return result;
@@ -213,7 +235,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-      
+
         public async Task<List<Invoice_Header_View>> FilterInvoiceDetailByUser(FilterClass filterClass)
         {
             try
@@ -230,6 +252,7 @@ namespace AREML.EPOD.Data.Repositories
                                     (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
                                     (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
                                     (!isInvoiceNumber || (tb.ODIN.Contains(filterClass.InvoiceNumber) || tb.INV_NO.Contains(filterClass.InvoiceNumber))) && (!isLRNumber || tb.LR_NO == filterClass.LRNumber)
+                                    let invoiceQuantity = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     select new Invoice_Header_View
                                     {
                                         HEADER_ID = tb.HEADER_ID,
@@ -282,8 +305,10 @@ namespace AREML.EPOD.Data.Repositories
                                         TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
                                         DELIVERY_DATE = tb.DELIVERY_DATE,
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
-                                        INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
+                                        INVOICE_QUANTITY = invoiceQuantity
                                     }).ToListAsync();
+
+
                 var PDDList = new List<Invoice_Header_View>();
                 if (filterClass.LeadTime.Contains("within") && filterClass.LeadTime.Count == 1)
                 {
@@ -316,13 +341,23 @@ namespace AREML.EPOD.Data.Repositories
                 {
                     result = PDDList.Concat(DeliveryList).ToList();
                 }
-                foreach (var res in result)
-                {
-                    var att = _dbContext.P_INV_ATTACHMENT.Where(x => x.HEADER_ID == res.HEADER_ID).FirstOrDefault();
-                    if (att != null)
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
                     {
-                        res.ATTACHMENT_ID = att.ATTACHMENT_ID;
-                        res.ATTACHMENT_NAME = att.ATTACHMENT_NAME;
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
                     }
                 }
                 return result;
@@ -332,12 +367,11 @@ namespace AREML.EPOD.Data.Repositories
                 throw ex;
             }
         }
-
-        public async Task<HttpResponseMessage> DownloadInvoiceDetailByUser(FilterClass filterClass)
+        public async Task<byte[]> DownloadInvoiceDetailByUser(FilterClass filterClass)
         {
             try
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                //var response = new HttpResponseMessage(HttpStatusCode.OK);
                 CreateTempFolder();
                 string TempFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Temp");
 
@@ -393,33 +427,44 @@ namespace AREML.EPOD.Data.Repositories
                         header.SECTOR_DESCRIPTION = Result.Sector;
                     }
                 }
-                IWorkbook workbook = new XSSFWorkbook();
-                ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
-                DateTime dt1 = DateTime.Today;
-                string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                var FileNm = $"Invoice details_{dtstr1}.xlsx";
-                var FilePath = Path.Combine(TempFolder, FileNm);
-                if (System.IO.File.Exists(FilePath))
-                {
-                    System.GC.Collect();
-                    System.GC.WaitForPendingFinalizers();
-                    System.IO.File.Delete(FilePath);
-                }
-                FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
-                workbook.Write(stream);
-                byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
-                var statuscode = HttpStatusCode.OK;
-                response.Content = new ByteArrayContent(fileByteArray);
-                response.Content.Headers.Add("x-filename", FileNm);
-                response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                ContentDispositionHeaderValue contentDisposition = null;
 
-                if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                using (var workbook = new XSSFWorkbook())
                 {
-                    response.Content.Headers.ContentDisposition = contentDisposition;
+                    ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
+                    using (var stream = new MemoryStream())
+                    {
+                        workbook.Write(stream);
+                        return stream.ToArray();
+                    }
                 }
 
-                return response;
+                //IWorkbook workbook = new XSSFWorkbook();
+                //ISheet sheet = _excelHelper.CreateNPOIworksheet(result, false, workbook);
+                //DateTime dt1 = DateTime.Today;
+                //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                //var FileNm = $"Invoice details_{dtstr1}.xlsx";
+                //var FilePath = Path.Combine(TempFolder, FileNm);
+                //if (System.IO.File.Exists(FilePath))
+                //{
+                //    System.GC.Collect();
+                //    System.GC.WaitForPendingFinalizers();
+                //    System.IO.File.Delete(FilePath);
+                //}
+                //FileStream stream = new FileStream(FilePath, FileMode.Create, FileAccess.Write);
+                //workbook.Write(stream);
+                //byte[] fileByteArray = System.IO.File.ReadAllBytes(FilePath);
+                //var statuscode = HttpStatusCode.OK;
+                //response.Content = new ByteArrayContent(fileByteArray);
+                //response.Content.Headers.Add("x-filename", FileNm);
+                //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                //ContentDispositionHeaderValue contentDisposition = null;
+
+                //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                //{
+                //    response.Content.Headers.ContentDisposition = contentDisposition;
+                //}
+
+                //return response;
             }
             catch (Exception ex)
             {
@@ -520,13 +565,23 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_DATE = td.DELIVERY_DATE,
                                         DELIVERY_TIME = td.DELIVERY_TIME,
                                     }).ToListAsync();
-                foreach (var res in result)
-                {
-                    var att = _dbContext.P_INV_ATTACHMENT.Where(x => x.HEADER_ID == res.HEADER_ID).FirstOrDefault();
-                    if (att != null)
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
                     {
-                        res.ATTACHMENT_ID = att.ATTACHMENT_ID;
-                        res.ATTACHMENT_NAME = att.ATTACHMENT_NAME;
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
                     }
                 }
                 return result;
@@ -730,7 +785,7 @@ namespace AREML.EPOD.Data.Repositories
             {
                 try
                 {
-                    List<P_INV_ITEM_DETAIL> items =await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
+                    List<P_INV_ITEM_DETAIL> items = await _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdation.HEADER_ID).ToListAsync();
 
                     foreach (P_INV_ITEM_DETAIL ite in items)
                     {
@@ -740,7 +795,7 @@ namespace AREML.EPOD.Data.Repositories
                             ite.STATUS = "Confirmed";
                         }
                     }
-                    P_INV_HEADER_DETAIL head =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
+                    P_INV_HEADER_DETAIL head = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(x => x.HEADER_ID == invoiceUpdation.HEADER_ID && x.IS_ACTIVE);
                     if (head != null)
                     {
                         if (head.INV_DATE.Value.Date <= invoiceUpdation.VEHICLE_REPORTED_DATE.Date)
@@ -782,7 +837,7 @@ namespace AREML.EPOD.Data.Repositories
             var doc = await _dbContext.P_INV_ATTACHMENT.FirstOrDefaultAsync(t => t.HEADER_ID == headerId);
             if (doc == null)
             {
-                throw new Exception("Not Found");
+                return new AttachmentStatus { AttachmentId = 0 };
             }
             else
             {
@@ -1757,7 +1812,7 @@ namespace AREML.EPOD.Data.Repositories
             var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(t => t.ODIN == invoiceNumber || t.INV_NO == invoiceNumber);
             if (header == null)
             {
-               throw new Exception("Invoice not found");
+                throw new Exception("Invoice not found");
             }
             else
             {
@@ -1766,7 +1821,7 @@ namespace AREML.EPOD.Data.Repositories
                     Id = doc.Id,
                     FileName = doc.FileName,
                     FileType = doc.FileType,
-                    CreatedBy =  (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
+                    CreatedBy = (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
                     CreatedOn = doc.CreatedOn
                 }).ToListAsync();
                 return documentHistories;
@@ -1805,18 +1860,49 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                P_INV_ATTACHMENT p_INV_ATTACHMENT = await (_dbContext.P_INV_ATTACHMENT).Where(x => x.ATTACHMENT_ID == attachmentID).FirstOrDefaultAsync();
-                if (p_INV_ATTACHMENT != null && p_INV_ATTACHMENT.ATTACHMENT_FILE.Length != 0)
+                string SharedFolderUserName = _networkCredential.SharedFolderUserName;
+                string SharedFolderPassword = _networkCredential.SharedFolderPassword;
+                string SharedFolderDomain = _networkCredential.SharedFolderDomain;
+
+                var att = await (_dbContext.P_INV_ATTACHMENT).Where(x => x.ATTACHMENT_ID == attachmentID).FirstOrDefaultAsync();
+                if (att != null)
                 {
-                    return new AttachmentResponse()
+
+                    try
                     {
-                        FileName = p_INV_ATTACHMENT.ATTACHMENT_NAME,
-                        FileContent = p_INV_ATTACHMENT.ATTACHMENT_FILE,
-                        Extension = p_INV_ATTACHMENT.DOCUMENT_TYPE
-                    };
+                        using (var impersonationHelper = new ImpersonationHelper(SharedFolderUserName, SharedFolderDomain, SharedFolderPassword))
+                        {
+                            var fileContent = File.ReadAllBytes(att.FILE_PATH);
+                            var attResponse = new AttachmentResponse()
+                            {
+                                FileName = att.FILE_NAME,
+                                FileContent = fileContent,
+                                Extension = "application/pdf"
+                            };
+                            return attResponse;
+                        }
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (IOException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.InnerException != null)
+                        {
+                            throw new Exception("Inner exception: " + ex.InnerException.Message);
+                        }
+                        throw ex;
+                    }
                 }
                 else
-                    throw new Exception("No Attachment found.");
+                {
+                    throw new Exception("Unable to find the attachment");
+                }
             }
             catch (Exception ex)
             {
@@ -2188,101 +2274,75 @@ namespace AREML.EPOD.Data.Repositories
                                         throw ex;
                                     }
                                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
-                                    if (header != null)
-                                    {
-                                        var plGrps = _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToList();
-                                        if (plGrps != null && plGrps.Count > 0 && plGrps.Contains(header.PLANT_CODE))
-                                        {
-                                            var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID);
-                                            if (previousAttachment == null)
-                                            {
-                                                P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                                attachment.HEADER_ID = invoiceUpdate.HEADER_ID;
-                                                attachment.FILE_NAME = convertedAttachment.Filename;
-                                                attachment.DOCUMENT_TYPE = "application/pdf";
-                                                attachment.FILE_PATH = fullPath;
-                                                attachment.CREATED_BY = invoiceUpdate.UserId;
-                                                attachment.CREATED_ON = DateTime.Now;
-                                                attachment.IS_ACTIVE = true;
-                                                _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                                await _dbContext.SaveChangesAsync();
-                                            }
-                                            else
-                                            {
-                                                var docHistory = new DocumentHistory();
-                                                docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                                docHistory.FileName = previousAttachment.FILE_NAME;
-                                                docHistory.FilePath = previousAttachment.FILE_PATH;
-                                                docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                                docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                                docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                                _dbContext.DocumentHistories.Add(docHistory);
-                                                previousAttachment.FILE_NAME = convertedAttachment.Filename;
-                                                previousAttachment.FILE_PATH = fullPath;
-                                                previousAttachment.CREATED_ON = DateTime.Now;
-                                                await _dbContext.SaveChangesAsync();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var headerList = _dbContext.P_INV_HEADER_DETAIL.Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE).Select(t => t.HEADER_ID).ToList();
-                                            foreach (var headerId in headerList)
-                                            {
-                                                var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
 
-                                                if (previousAttachment == null)
-                                                {
-                                                    P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                                    attachment.HEADER_ID = headerId;
-                                                    attachment.FILE_NAME = convertedAttachment.Filename;
-                                                    attachment.DOCUMENT_TYPE = "application/pdf";
-                                                    attachment.FILE_PATH = fullPath;
-                                                    attachment.CREATED_BY = invoiceUpdate.UserId;
-                                                    attachment.CREATED_ON = DateTime.Now;
-                                                    attachment.IS_ACTIVE = true;
-                                                    _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                                    await _dbContext.SaveChangesAsync();
-                                                }
-                                                else
-                                                {
-                                                    var docHistory = new DocumentHistory();
-                                                    docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                                    docHistory.FileName = previousAttachment.FILE_NAME;
-                                                    docHistory.FilePath = previousAttachment.FILE_PATH;
-                                                    docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                                    docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                                    docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                                    _dbContext.DocumentHistories.Add(docHistory);
-                                                    previousAttachment.FILE_NAME = convertedAttachment.Filename;
-                                                    previousAttachment.FILE_PATH = fullPath;
-                                                    previousAttachment.CREATED_ON = DateTime.Now;
-                                                    await _dbContext.SaveChangesAsync();
-                                                }
-                                            }
-                                        }
-
-                                        List<P_INV_ITEM_DETAIL> InvoiceItems = _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdate.HEADER_ID).ToList();
-                                        InvoiceItems.ForEach((item) =>
-                                        {
-                                            item.RECEIVED_QUANTITY = item.QUANTITY;
-                                            item.STATUS = "Confirmed";
-                                        });
-
-                                        P_INV_HEADER_DETAIL head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
-                                        if (head != null)
-                                        {
-                                            head.STATUS = "Confirmed";
-                                            head.ACTUAL_DELIVERY_DATE = DateTime.Now;
-                                        }
-                                        await _dbContext.SaveChangesAsync();
-                                        await transaction.CommitAsync();
-                                        response.Message = $"Invoice {head.INV_NO} Confirmed";
-                                        return response;
-                                    }
-                                    else
+                                    if (header == null)
                                     {
                                         throw new Exception("Unable to find the invoice.");
                                     }
+                                    var plGrps = _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToList();
+                                    var isPlantInGroup = plGrps.Contains(header.PLANT_CODE);
+                                    var headerList = isPlantInGroup
+                                                            ? new List<int> { header.HEADER_ID }
+                                                            : await _dbContext.P_INV_HEADER_DETAIL
+                                                            .Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE)
+                                                            .Select(t => t.HEADER_ID)
+                                                            .ToListAsync();
+
+
+                                    foreach (var headerId in headerList)
+                                    {
+                                        var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
+
+                                        if (previousAttachment == null)
+                                        {
+                                            P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+                                            attachment.HEADER_ID = headerId;
+                                            attachment.FILE_NAME = convertedAttachment.Filename;
+                                            attachment.DOCUMENT_TYPE = "application/pdf";
+                                            attachment.FILE_PATH = fullPath;
+                                            attachment.CREATED_BY = invoiceUpdate.UserId;
+                                            attachment.CREATED_ON = DateTime.Now;
+                                            attachment.IS_ACTIVE = true;
+                                            _dbContext.P_INV_ATTACHMENT.Add(attachment);
+                                            await _dbContext.SaveChangesAsync();
+                                        }
+                                        else
+                                        {
+                                            var docHistory = new DocumentHistory();
+                                            docHistory.HeaderId = previousAttachment.HEADER_ID;
+                                            docHistory.FileName = previousAttachment.FILE_NAME;
+                                            docHistory.FilePath = previousAttachment.FILE_PATH;
+                                            docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+                                            docHistory.CreatedOn = previousAttachment.CREATED_ON;
+                                            docHistory.CreatedBy = previousAttachment.CREATED_BY;
+                                            _dbContext.DocumentHistories.Add(docHistory);
+                                            previousAttachment.FILE_NAME = convertedAttachment.Filename;
+                                            previousAttachment.FILE_PATH = fullPath;
+                                            previousAttachment.CREATED_ON = DateTime.Now;
+                                            await _dbContext.SaveChangesAsync();
+                                        }
+                                    }
+
+                                    List<P_INV_ITEM_DETAIL> InvoiceItems = _dbContext.P_INV_ITEM_DETAIL.Where(x => x.HEADER_ID == invoiceUpdate.HEADER_ID).ToList();
+                                    InvoiceItems.ForEach((item) =>
+                                    {
+                                        item.RECEIVED_QUANTITY = item.QUANTITY;
+                                        item.STATUS = "Confirmed";
+                                    });
+
+                                    P_INV_HEADER_DETAIL head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+                                    if (head != null)
+                                    {
+                                        head.STATUS = "Confirmed";
+                                        head.ACTUAL_DELIVERY_DATE = DateTime.Now;
+                                        head.VEHICLE_REPORTED_DATE = invoiceUpdate.VEHICLE_REPORTED_DATE;
+                                    }
+                                    await _dbContext.SaveChangesAsync();
+                                    await transaction.CommitAsync();
+                                    response.Message = $"Invoice {head.INV_NO} Confirmed";
+                                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+                                    return response;
+
                                 }
                             }
                         }
@@ -2358,113 +2418,83 @@ namespace AREML.EPOD.Data.Repositories
                                         throw ex;
                                     }
                                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
-                                    if (header != null)
-                                    {
-                                        var plGrps = _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToList();
-                                        if (plGrps != null && plGrps.Count > 0 && plGrps.Contains(header.PLANT_CODE))
-                                        {
-                                            var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID);
-                                            if (previousAttachment == null)
-                                            {
-                                                P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                                attachment.HEADER_ID = invoiceUpdate.HEADER_ID;
-                                                attachment.FILE_NAME = convertedAttachment.Filename;
-                                                attachment.DOCUMENT_TYPE = "application/pdf";
-                                                attachment.FILE_PATH = fullPath;
-                                                attachment.CREATED_BY = invoiceUpdate.UserId;
-                                                attachment.CREATED_ON = DateTime.Now;
-                                                attachment.IS_ACTIVE = true;
-                                                _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                                await _dbContext.SaveChangesAsync();
-                                            }
-                                            else
-                                            {
-                                                var docHistory = new DocumentHistory();
-                                                docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                                docHistory.FileName = previousAttachment.FILE_NAME;
-                                                docHistory.FilePath = previousAttachment.FILE_PATH;
-                                                docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                                docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                                docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                                _dbContext.DocumentHistories.Add(docHistory);
-                                                previousAttachment.FILE_NAME = convertedAttachment.Filename;
-                                                previousAttachment.FILE_PATH = fullPath;
-                                                previousAttachment.CREATED_ON = DateTime.Now;
-                                                await _dbContext.SaveChangesAsync();
-                                            }
-                                        }
-                                        else
-                                        {
-                                            var headerList = _dbContext.P_INV_HEADER_DETAIL.Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE).Select(t => t.HEADER_ID).ToList();
-                                            foreach (var headerId in headerList)
-                                            {
-                                                var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
-
-                                                if (previousAttachment == null)
-                                                {
-                                                    P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                                    attachment.HEADER_ID = headerId;
-                                                    attachment.FILE_NAME = convertedAttachment.Filename;
-                                                    attachment.DOCUMENT_TYPE = "application/pdf";
-                                                    attachment.FILE_PATH = fullPath;
-                                                    attachment.CREATED_BY = invoiceUpdate.UserId;
-                                                    attachment.CREATED_ON = DateTime.Now;
-                                                    attachment.IS_ACTIVE = true;
-                                                    _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                                    await _dbContext.SaveChangesAsync();
-                                                }
-                                                else
-                                                {
-                                                    var docHistory = new DocumentHistory();
-                                                    docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                                    docHistory.FileName = previousAttachment.FILE_NAME;
-                                                    docHistory.FilePath = previousAttachment.FILE_PATH;
-                                                    docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                                    docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                                    docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                                    _dbContext.DocumentHistories.Add(docHistory);
-                                                    previousAttachment.FILE_NAME = convertedAttachment.Filename;
-                                                    previousAttachment.FILE_PATH = fullPath;
-                                                    previousAttachment.CREATED_ON = DateTime.Now;
-                                                    await _dbContext.SaveChangesAsync();
-                                                }
-
-                                            }
-                                        }
-
-                                        bool isPartiallyConfirmed = false;
-                                        foreach (var item in invoiceUpdate.InvoiceItems)
-                                        {
-                                            var existing = _dbContext.P_INV_ITEM_DETAIL.FirstOrDefault(x => x.ITEM_ID == item.ITEM_ID && x.HEADER_ID == item.HEADER_ID);
-                                            if (existing != null)
-                                            {
-                                                existing.RECEIVED_QUANTITY = item.RECEIVED_QUANTITY;
-                                                if (item.RECEIVED_QUANTITY < item.QUANTITY)
-                                                {
-                                                    existing.STATUS = "PartiallyConfirmed";
-                                                    isPartiallyConfirmed = true;
-                                                }
-                                                else
-                                                    existing.STATUS = "Confirmed";
-                                            }
-                                        }
-
-                                        var head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
-                                        if (head != null)
-                                        {
-                                            head.STATUS = isPartiallyConfirmed ? "PartiallyConfirmed" : "Confirmed";
-                                            head.ACTUAL_DELIVERY_DATE = DateTime.Now;
-                                        }
-
-                                        await _dbContext.SaveChangesAsync();
-                                        await transaction.CommitAsync();
-                                        response.Message = $"Invoice {head.INV_NO} Confirmed";
-                                        return response;
-                                    }
-                                    else
+                                    if (header == null)
                                     {
                                         throw new Exception("Unable to find the invoice.");
                                     }
+                                    var plGrps = _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToList();
+                                    var isPlantInGroup = plGrps.Contains(header.PLANT_CODE);
+                                    var headerList = isPlantInGroup
+                                                            ? new List<int> { header.HEADER_ID }
+                                                            : await _dbContext.P_INV_HEADER_DETAIL
+                                                            .Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE)
+                                                            .Select(t => t.HEADER_ID)
+                                                            .ToListAsync();
+
+
+                                    foreach (var headerId in headerList)
+                                    {
+                                        var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
+
+                                        if (previousAttachment == null)
+                                        {
+                                            P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+                                            attachment.HEADER_ID = headerId;
+                                            attachment.FILE_NAME = convertedAttachment.Filename;
+                                            attachment.DOCUMENT_TYPE = "application/pdf";
+                                            attachment.FILE_PATH = fullPath;
+                                            attachment.CREATED_BY = invoiceUpdate.UserId;
+                                            attachment.CREATED_ON = DateTime.Now;
+                                            attachment.IS_ACTIVE = true;
+                                            _dbContext.P_INV_ATTACHMENT.Add(attachment);
+                                            await _dbContext.SaveChangesAsync();
+                                        }
+                                        else
+                                        {
+                                            var docHistory = new DocumentHistory();
+                                            docHistory.HeaderId = previousAttachment.HEADER_ID;
+                                            docHistory.FileName = previousAttachment.FILE_NAME;
+                                            docHistory.FilePath = previousAttachment.FILE_PATH;
+                                            docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+                                            docHistory.CreatedOn = previousAttachment.CREATED_ON;
+                                            docHistory.CreatedBy = previousAttachment.CREATED_BY;
+                                            _dbContext.DocumentHistories.Add(docHistory);
+                                            previousAttachment.FILE_NAME = convertedAttachment.Filename;
+                                            previousAttachment.FILE_PATH = fullPath;
+                                            previousAttachment.CREATED_ON = DateTime.Now;
+                                            await _dbContext.SaveChangesAsync();
+                                        }
+                                    }
+                                    bool isPartiallyConfirmed = false;
+                                    foreach (var item in invoiceUpdate.InvoiceItems)
+                                    {
+                                        var existing = _dbContext.P_INV_ITEM_DETAIL.FirstOrDefault(x => x.ITEM_ID == item.ITEM_ID && x.HEADER_ID == item.HEADER_ID);
+                                        if (existing != null)
+                                        {
+                                            existing.RECEIVED_QUANTITY = item.RECEIVED_QUANTITY;
+                                            if (item.RECEIVED_QUANTITY < item.QUANTITY)
+                                            {
+                                                existing.STATUS = "PartiallyConfirmed";
+                                                isPartiallyConfirmed = true;
+                                            }
+                                            else
+                                                existing.STATUS = "Confirmed";
+                                        }
+                                    }
+
+                                    var head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+                                    if (head != null)
+                                    {
+                                        head.STATUS = isPartiallyConfirmed ? "PartiallyConfirmed" : "Confirmed";
+                                        head.ACTUAL_DELIVERY_DATE = DateTime.Now;
+                                        head.VEHICLE_REPORTED_DATE = invoiceUpdate.VEHICLE_REPORTED_DATE;
+                                    }
+
+                                    await _dbContext.SaveChangesAsync();
+                                    await transaction.CommitAsync();
+                                    response.Message = $"Invoice {head.INV_NO} Confirmed";
+                                    LogWriter.WriteProcessLog(String.Concat(Enumerable.Repeat("*", 25)));
+                                    return response;
                                 }
                             }
                         }
@@ -2547,7 +2577,7 @@ namespace AREML.EPOD.Data.Repositories
                     string userID = request.Form["UserID"].ToString();
                     var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == headerID && x.IS_ACTIVE);
                     IFormFileCollection postedfiles = request.Form.Files;
-                    if(postedfiles.Count > 0)
+                    if (postedfiles.Count > 0)
                     {
                         var ext = postedfiles[0].FileName.ToString().Split('.')[postedfiles[0].FileName.ToString().Split('.').Length - 1];
                         fileName = header.HEADER_ID.ToString().Replace("/", "_") + "_" + header.CUSTOMER + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
@@ -2659,6 +2689,7 @@ namespace AREML.EPOD.Data.Repositories
                             }
                         }
                     }
+                    await transaction.CommitAsync();
                     return true;
                 }
                 catch (Exception)
@@ -2678,7 +2709,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                P_INV_HEADER_DETAIL inv_header =await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
+                P_INV_HEADER_DETAIL inv_header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.INV_NO == salesReturnProps.InvoiceNumber && t.IS_ACTIVE);
                 if (inv_header == null)
                 {
                     throw new Exception($"Invoice not found!!!");
@@ -2725,7 +2756,7 @@ namespace AREML.EPOD.Data.Repositories
                             throw new Exception($"PODConfirmation/SalesReturns: Material - {material.MaterialCode} Not Found!!!");
                         }
                     }
-                    var tCreditInvoices =await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
+                    var tCreditInvoices = await _dbContext.SalesReturnCreditNoteLogs.Where(t => t.InvoiceNumber == salesReturnProps.InvoiceNumber).GroupBy(t => t.ItemNumber).ToListAsync();
                     var slConfirmationList = new List<SalesReturnStatusConfirmation>();
                     foreach (var tCI in tCreditInvoices)
                     {
@@ -2758,20 +2789,20 @@ namespace AREML.EPOD.Data.Repositories
             try
             {
                 var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                              join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                              join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                              where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                              select new
-                              {
-                                  tb2.ITEM_ID,
-                                  tb.CRID,
-                                  tb2.MATERIAL_CODE,
-                                  tb2.QUANTITY,
-                                  tb2.RECEIVED_QUANTITY,
-                                  tb.CreditInvoice,
-                                  tb.Qty,
-                                  tb.IsActive
-                              }
+                                    join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                    join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                    where tb.CreditInvoice == CRinvoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                    select new
+                                    {
+                                        tb2.ITEM_ID,
+                                        tb.CRID,
+                                        tb2.MATERIAL_CODE,
+                                        tb2.QUANTITY,
+                                        tb2.RECEIVED_QUANTITY,
+                                        tb.CreditInvoice,
+                                        tb.Qty,
+                                        tb.IsActive
+                                    }
                               ).FirstOrDefaultAsync();
 
                 if (slslog != null)
@@ -2809,8 +2840,8 @@ namespace AREML.EPOD.Data.Repositories
             try
             {
                 P_INV_HEADER_DETAIL result = await (from td in _dbContext.P_INV_HEADER_DETAIL
-                                              where td.INV_NO == Invoiceno && td.IS_ACTIVE
-                                              select td).FirstOrDefaultAsync();
+                                                    where td.INV_NO == Invoiceno && td.IS_ACTIVE
+                                                    select td).FirstOrDefaultAsync();
                 if (result != null)
                 {
                     result.IS_ACTIVE = false;
@@ -2820,27 +2851,27 @@ namespace AREML.EPOD.Data.Repositories
                 else
                 {
 
-                    var slslog =await (from tb in _dbContext.SalesReturnCreditNoteLogs
-                                  join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
-                                  join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
-                                  where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
-                                  select new
-                                  {
-                                      tb1.HEADER_ID,
-                                      tb2.ITEM_ID,
-                                      tb.CRID,
-                                      tb2.MATERIAL_CODE,
-                                      tb2.QUANTITY,
-                                      tb2.RECEIVED_QUANTITY,
-                                      tb.CreditInvoice,
-                                      tb.Qty,
-                                      tb.IsActive
-                                  }
+                    var slslog = await (from tb in _dbContext.SalesReturnCreditNoteLogs
+                                        join tb1 in _dbContext.P_INV_HEADER_DETAIL on tb.InvoiceNumber equals tb1.INV_NO
+                                        join tb2 in _dbContext.P_INV_ITEM_DETAIL on tb1.HEADER_ID equals tb2.HEADER_ID
+                                        where tb.CreditInvoice == Invoiceno && tb2.MATERIAL_CODE == tb.MaterialCode && tb.ItemNumber == tb2.ITEM_NO
+                                        select new
+                                        {
+                                            tb1.HEADER_ID,
+                                            tb2.ITEM_ID,
+                                            tb.CRID,
+                                            tb2.MATERIAL_CODE,
+                                            tb2.QUANTITY,
+                                            tb2.RECEIVED_QUANTITY,
+                                            tb.CreditInvoice,
+                                            tb.Qty,
+                                            tb.IsActive
+                                        }
                               ).FirstOrDefaultAsync();
 
                     if (slslog != null)
                     {
-                        var itm =await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
+                        var itm = await _dbContext.P_INV_ITEM_DETAIL.Where(k => k.ITEM_ID == slslog.ITEM_ID).FirstOrDefaultAsync();
                         var ls = itm.REMARKS.Split(',').ToList();
 
                         for (int i = 0; i < ls.Count; i++)
