@@ -66,6 +66,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<ResponseMessage> ConfirmInvoice();
         Task<ResponseMessage> ConfirmInvoiceDetails();
         Task<ResponseMessage> ConfirmQty(InvoiceUpdate invoiceUpdate);
+        Task<ResponseMessage> UpdateQty(InvoiceUpdate invoiceUpdate);
         Task<bool> ReUploadLR();
         #endregion
 

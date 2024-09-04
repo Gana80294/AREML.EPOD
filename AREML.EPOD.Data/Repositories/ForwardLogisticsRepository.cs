@@ -2510,7 +2510,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        //confirm-qty from both invoice & invoice-line item screens. Update invoice-items only with (date, headerID)
+        //confirm-qty from invoice screen. Update invoice-items only with (date, headerID)
         public async Task<ResponseMessage> ConfirmQty(InvoiceUpdate invoiceUpdate)
         {
             var response = new ResponseMessage()
@@ -2551,7 +2551,56 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
+        //confirm-qty from invoice-line item screen. Update invoice-items only with (date, headerID, item list)
+        public async Task<ResponseMessage> UpdateQty(InvoiceUpdate invoiceUpdate)
+        {
+            var response = new ResponseMessage()
+            {
+                Status = 200,
+                Message = "",
+                Error = ""
+            };
 
+            using (var transaction = await this._dbContext.Database.BeginTransactionAsync())
+            {
+                try
+                {
+                    bool isPartiallyConfirmed = false;
+                    foreach (var item in invoiceUpdate.InvoiceItems)
+                    {
+                        var existing = _dbContext.P_INV_ITEM_DETAIL.FirstOrDefault(x => x.ITEM_ID == item.ITEM_ID && x.HEADER_ID == item.HEADER_ID);
+                        if (existing != null)
+                        {
+                            existing.RECEIVED_QUANTITY = item.RECEIVED_QUANTITY;
+                            if (item.RECEIVED_QUANTITY < item.QUANTITY)
+                            {
+                                existing.STATUS = "PartiallyConfirmed";
+                                isPartiallyConfirmed = true;
+                            }
+                            else
+                                existing.STATUS = "Confirmed";
+                        }
+                    }
+
+                    var head = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+                    if (head != null)
+                    {
+                        head.STATUS = isPartiallyConfirmed ? "PartiallyConfirmed" : "Confirmed";
+                        head.ACTUAL_DELIVERY_DATE = DateTime.Now;
+                        head.VEHICLE_REPORTED_DATE = invoiceUpdate.VEHICLE_REPORTED_DATE;
+                    }
+                    await _dbContext.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    response.Message = $"Invoice {head.INV_NO} Confirmed";
+                    return response;
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    throw ex;
+                }
+            }
+        }
         //re-upload from both invoice & invoice-line item screens. Update invoice with (form , attachment, HEaderID)
         public async Task<bool> ReUploadLR()
         {

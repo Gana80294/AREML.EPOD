@@ -319,6 +319,12 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> UpdateQty(InvoiceUpdate invoiceUpdate)
+        {
+            return Ok(await _forwardRepository.UpdateQty(invoiceUpdate));
+        }
+
+        [HttpPost]
         public async Task<IActionResult> ReuploadLR()
         {
             return Ok(await _forwardRepository.ReUploadLR());
