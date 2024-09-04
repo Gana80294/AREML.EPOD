@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities.ForwardLogistics;
+﻿using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
 using AREML.EPOD.Core.Entities.Master;
@@ -45,6 +46,8 @@ namespace AREML.EPOD.Interfaces.IRepositories
         #region User-Manual
         Task<bool> AddUserManual(IFormFileCollection files);
         Task<List<UserManualDocStore>> GetUserManual();
+        Task<AttachmentResponse> GetUserManualPdf();
+        Task<AttachmentResponse> GetUserManualVideo();
         #endregion
 
         #region Reasons

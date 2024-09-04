@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Entities;
+﻿using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Mappings;
@@ -1198,6 +1199,50 @@ namespace AREML.EPOD.Data.Repositories
 
             }
 
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public async Task<AttachmentResponse> GetUserManualPdf()
+        {
+            try
+            {
+                var userManual = await _ctx.UserManualDocStores.Where(x => x.FileType == "application/pdf")
+                    .Select(x => new AttachmentResponse
+                    {
+                        FileName = x.FileName,
+                        FileContent = x.FileContent,
+                        Extension = x.FileType
+                    }).FirstOrDefaultAsync();
+
+                if (userManual == null)
+                    throw new FileNotFoundException("User manual PDF not found.");
+                return userManual;
+            }
+            catch(Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        public async Task<AttachmentResponse> GetUserManualVideo()
+        {
+            try
+            {
+                var userManual = await _ctx.UserManualDocStores.Where(x => x.FileType == "video/mp4")
+                    .Select(x => new AttachmentResponse
+                    {
+                        FileName = x.FileName,
+                        FileContent = x.FileContent,
+                        Extension = x.FileType
+                    }).FirstOrDefaultAsync();
+
+                if (userManual == null)
+                    throw new FileNotFoundException("User manual Video not found.");
+                return userManual;
+            }
             catch (Exception ex)
             {
                 throw ex;
