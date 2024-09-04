@@ -17,5 +17,6 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<string> ChangePassword(ChangePassword changePassword);
         Task<OTPResponseBody> PasswordResetSendSMSOTP(string username);
         Task<string> ResetPasswordWithSMSOTP(AffrimativeOTPBody otpBody);
+        Task<AuthenticationResponse> AuthenticateMobileUser(LoginDetails loginDetails);
     }
 }

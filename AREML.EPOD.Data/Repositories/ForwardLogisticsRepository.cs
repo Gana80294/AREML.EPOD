@@ -2472,6 +2472,8 @@ namespace AREML.EPOD.Data.Repositories
                                         if (existing != null)
                                         {
                                             existing.RECEIVED_QUANTITY = item.RECEIVED_QUANTITY;
+                                            existing.REASON = item.REASON;
+                                            existing.REMARKS = item.REMARKS;
                                             if (item.RECEIVED_QUANTITY < item.QUANTITY)
                                             {
                                                 existing.STATUS = "PartiallyConfirmed";
@@ -2572,6 +2574,8 @@ namespace AREML.EPOD.Data.Repositories
                         if (existing != null)
                         {
                             existing.RECEIVED_QUANTITY = item.RECEIVED_QUANTITY;
+                            existing.REASON = item.REASON;
+                            existing.REMARKS = item.REMARKS;
                             if (item.RECEIVED_QUANTITY < item.QUANTITY)
                             {
                                 existing.STATUS = "PartiallyConfirmed";

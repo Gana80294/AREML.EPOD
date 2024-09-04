@@ -285,7 +285,7 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                User user = await _dbContext.Users.FirstOrDefaultAsync(x => x.UserName == changePassword.UserName && x.IsActive);
+                User user = await _dbContext.Users.FirstOrDefaultAsync(x => x.UserID == changePassword.UserID && x.IsActive);
                 if (user == null)
                     throw new Exception("The user name or password is incorrect.");
                 string decryptedPassword = _passwordEncryptor.Decrypt(user.Password, true);
@@ -396,6 +396,130 @@ namespace AREML.EPOD.Data.Repositories
                 LogWriter.WriteToFile("AuthRepo/ResetPasswordWithSMSOTP/Exception :- ", ex);
                 throw ex;
             }
+        }
+        #endregion
+
+        #region Mobile_Login
+        public async Task<AuthenticationResponse> AuthenticateMobileUser(LoginDetails loginDetails)
+        {
+            try
+            {
+                AuthenticationResponse authResponse = new AuthenticationResponse();
+                List<string> MenuItemList = new List<string>();
+                string MenuItemNames = "";
+                string isChangePasswordRequired = "No";
+                var user = this._dbContext.Users.FirstOrDefault(x => x.UserCode == loginDetails.UserName || x.Email == loginDetails.UserName && x.IsActive);
+
+                if (user != null)
+                {
+                    if (user.IsLocked)
+                    {
+                        throw new Exception("User Account Locked! Please contact the Admin.");
+                    }
+                    else
+                    {
+                        var userRoles = await (from role in _dbContext.Roles
+                                               join userRole in _dbContext.UserRoleMaps on role.RoleID equals userRole.RoleID
+                                               join users in _dbContext.Users on userRole.UserID equals users.UserID
+                                               where userRole.UserID == user.UserID && role.IsActive == true && userRole.IsActive == true
+                                               select role).FirstOrDefaultAsync();
+
+                        bool isValidUser = false;
+                        string DecryptedPassword = _passwordEncryptor.Decrypt(user.Password, true);
+                        isValidUser = DecryptedPassword == loginDetails.Password;
+
+                        if (!isValidUser)
+                        {
+                            throw new Exception("Username or password is wrong");
+                        }
+                        if (_passwordEncryptor.IsPasswordChangeRequired(user.LastPasswordChangeDate))
+                        {
+                            isChangePasswordRequired = "Yes";
+                        }
+                        await this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
+                        var Plants = _dbContext.UserPlantMaps.Where(x => x.UserID == user.UserID).Select(y => y.PlantCode).ToList();
+                        if (userRoles != null)
+                        {
+                            MenuItemList = (from tb1 in _dbContext.Apps
+                                            join tb2 in _dbContext.RoleAppMaps on tb1.AppID equals tb2.AppID
+                                            where tb2.RoleID == userRoles.RoleID && tb1.IsActive == true && tb2.IsActive == true
+                                            select tb1.AppName).ToList();
+                            foreach (string item in MenuItemList)
+                            {
+                                if (MenuItemNames == "")
+                                {
+                                    MenuItemNames = item;
+                                }
+                                else
+                                {
+                                    MenuItemNames += "," + item;
+                                }
+                            }
+                        }
+
+                        authResponse.UserID = user.UserID;
+                        authResponse.UserName = user.UserName;
+                        authResponse.Email = user.Email;
+                        authResponse.ContactNumber = user.ContactNumber;
+                        authResponse.Role = userRoles.RoleName;
+                        authResponse.MenuItemLists = MenuItemList;
+                        authResponse.Plants = Plants;
+                        authResponse.UserCode = user.UserCode;
+                        authResponse.Role_Id = userRoles.RoleID;
+                        authResponse.Token = GenerateTokenMobile(authResponse);
+                        return authResponse;
+                    }
+                }
+                else
+                {
+                    throw new Exception("Username or password is wrong");
+
+                }
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        private string GenerateTokenMobile(AuthenticationResponse authenticationResponse)
+        {
+            string securityKey = _jwtSetting.securityKey;
+            string issuer = _jwtSetting.issuer;
+            string audience = _jwtSetting.audience;
+
+            var symmetricSecurityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(securityKey));
+            var signingCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256Signature);
+
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.Name, authenticationResponse.UserName),
+        new Claim(ClaimTypes.Role, authenticationResponse.Role)
+    };
+            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Admin")
+            {
+                claims.Add(new Claim("RoleId", authenticationResponse.Role_Id.ToString()));
+            }
+
+            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Amararaja User")
+            {
+                claims.Add(new Claim("RoleId", authenticationResponse.Role_Id.ToString()));
+            }
+
+            if (authenticationResponse.UserID != null && authenticationResponse.Role == "Customer")
+            {
+                claims.Add(new Claim("UserId", authenticationResponse.UserID.ToString()));
+            }
+
+            var token = new JwtSecurityToken(
+                                issuer: issuer,
+                                audience: audience,
+                                expires: DateTime.Now.AddHours(4),
+                                signingCredentials: signingCredentials,
+                                claims: claims
+                            );
+            var authToken = new JwtSecurityTokenHandler().WriteToken(token);
+            return authToken;
         }
         #endregion
     }
