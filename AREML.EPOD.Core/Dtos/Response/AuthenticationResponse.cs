@@ -19,5 +19,7 @@ namespace AREML.EPOD.Core.Dtos.Response
         public List<string> MenuItemLists { get; set; }
         public List<string> Plants {  get; set; }
 
+        public string IsChangePasswordRequired {  get; set; }
+
     }
 }

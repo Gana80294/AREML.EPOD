@@ -30,18 +30,18 @@ namespace AREML.EPOD.API.Controllers
             {
                 return Ok(await this._auth.ForgotPassword(forgotPassword));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
 
-        [Authorize]
+        //[Authorize]
         [HttpPost]
         public async Task<IActionResult> ChangePassword(ChangePassword changePassword)
         {
             var result = await this._auth.ChangePassword(changePassword);
-            return Ok(new {message = result});
+            return Ok(new { message = result });
         }
 
         [HttpPost]
