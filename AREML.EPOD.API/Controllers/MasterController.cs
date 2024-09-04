@@ -95,7 +95,15 @@ namespace AREML.EPOD.API.Controllers
         [HttpPost]
         public IActionResult DownloadUsersExcell(DownloadUserModel downloadUser)
         {
-            return Ok(_masterRepository.DownloadUsersExcell(downloadUser));
+            var fileContent = this._masterRepository.DownloadUsersExcell(downloadUser);
+
+            if (fileContent == null)
+            {
+                return NotFound("No data available for the requested filter.");
+            }
+
+            var fileName = $"User_Details_{DateTime.Now.ToString("ddMMyyyyHHmmss")}.xlsx";
+            return File(fileContent, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpPost]

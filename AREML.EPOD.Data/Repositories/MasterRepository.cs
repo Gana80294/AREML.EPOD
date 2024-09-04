@@ -411,7 +411,7 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public bool DownloadUsersExcell(DownloadUserModel downloadUser)
+        public byte[] DownloadUsersExcell(DownloadUserModel downloadUser)
         {
             try
             {
@@ -550,35 +550,44 @@ namespace AREML.EPOD.Data.Repositories
 
                     });
 
-
-                    IWorkbook workbook = new XSSFWorkbook();
-                    ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(overAllusers, workbook);
-                    DateTime dt1 = DateTime.Today;
-                    string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
-                    var FileNm = $"User details_{dtstr1}.xlsx";
-
-                    MemoryStream memory = new MemoryStream();
-
-
-                    workbook.Write(memory);
-
-                    byte[] fileByteArray = memory.ToArray();
-
-
-                    var statuscode = HttpStatusCode.OK;
-                    //response = Request.CreateResponse(statuscode);
-                    response.Content = new StreamContent(new MemoryStream(fileByteArray));
-                    response.Content.Headers.Add("x-filename", FileNm);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-                    //response.Content.Headers.ContentLength = contentLength;
-                    ContentDispositionHeaderValue contentDisposition = null;
-
-                    if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    using (var workbook = new XSSFWorkbook())
                     {
-                        response.Content.Headers.ContentDisposition = contentDisposition;
+                        ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(result, workbook);
+                        using (var stream = new MemoryStream())
+                        {
+                            workbook.Write(stream);
+                            return stream.ToArray();
+                        }
                     }
 
-                    return true;
+                    //IWorkbook workbook = new XSSFWorkbook();
+                    //ISheet sheet = _excelHelper.CreateNPOIExportUserworksheet(overAllusers, workbook);
+                    //DateTime dt1 = DateTime.Today;
+                    //string dtstr1 = dt1.ToString("ddMMyyyyHHmmss");
+                    //var FileNm = $"User details_{dtstr1}.xlsx";
+
+                    //MemoryStream memory = new MemoryStream();
+
+
+                    //workbook.Write(memory);
+
+                    //byte[] fileByteArray = memory.ToArray();
+
+
+                    //var statuscode = HttpStatusCode.OK;
+                    ////response = Request.CreateResponse(statuscode);
+                    //response.Content = new StreamContent(new MemoryStream(fileByteArray));
+                    //response.Content.Headers.Add("x-filename", FileNm);
+                    //response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+                    ////response.Content.Headers.ContentLength = contentLength;
+                    //ContentDispositionHeaderValue contentDisposition = null;
+
+                    //if (ContentDispositionHeaderValue.TryParse("inline; filename=" + FileNm, out contentDisposition))
+                    //{
+                    //    response.Content.Headers.ContentDisposition = contentDisposition;
+                    //}
+
+                    //return true;
                 }
                 else
                 {

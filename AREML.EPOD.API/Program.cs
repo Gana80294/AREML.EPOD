@@ -86,6 +86,8 @@ namespace AREML.EPOD.API
             builder.Services.AddSingleton<PdfCompresser>();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddSingleton<MasterProfile>();
+            builder.Services.AddSingleton<EmailHelper>();
+
 
             var app = builder.Build();
 
