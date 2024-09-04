@@ -1821,7 +1821,7 @@ namespace AREML.EPOD.Data.Repositories
                     Id = doc.Id,
                     FileName = doc.FileName,
                     FileType = doc.FileType,
-                    CreatedBy = (from tb in _dbContext.Users where tb.UserID == new Guid(doc.CreatedBy) select tb.UserName).FirstOrDefault(),
+                    CreatedBy = (from tb in _dbContext.Users where tb.UserID.ToString() == doc.CreatedBy select tb.UserName).FirstOrDefault(),
                     CreatedOn = doc.CreatedOn
                 }).ToListAsync();
                 return documentHistories;

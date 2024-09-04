@@ -7,6 +7,7 @@ using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Data.Helpers;
 using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
+using iText.Commons.Actions.Contexts;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -44,14 +45,14 @@ namespace AREML.EPOD.Data.Repositories
             _otp = new OtpHelper(config);
         }
 
-        public async Task<AuthenticationResponse> AuthenticateUser(LoginDetails loginDetails)
+        public async Task<string> AuthenticateUser(LoginDetails loginDetails)
         {
             try
             {
                 AuthenticationResponse authResponse = new AuthenticationResponse();
                 List<string> MenuItemList = new List<string>();
                 string MenuItemNames = "";
-                string isChangePasswordRequired = "No";
+                authResponse.IsChangePasswordRequired = "No";
                 var user = this._dbContext.Users.FirstOrDefault(x => x.UserCode == loginDetails.UserName || x.Email == loginDetails.UserName && x.IsActive);
 
                 if (user != null)
@@ -78,7 +79,7 @@ namespace AREML.EPOD.Data.Repositories
                         }
                         if (_passwordEncryptor.IsPasswordChangeRequired(user.LastPasswordChangeDate))
                         {
-                            isChangePasswordRequired = "Yes";
+                            authResponse.IsChangePasswordRequired = "Yes";
                         }
                         await this._masterRepository.LoginHistory(user.UserID, user.UserCode, user.UserName);
                         var Plants = _dbContext.UserPlantMaps.Where(x => x.UserID == user.UserID).Select(y => y.PlantCode).ToList();
@@ -99,19 +100,38 @@ namespace AREML.EPOD.Data.Repositories
                                     MenuItemNames += "," + item;
                                 }
                             }
-                        }
 
-                        authResponse.UserID = user.UserID;
-                        authResponse.UserName = user.UserName;
-                        authResponse.Email = user.Email;
-                        authResponse.ContactNumber = user.ContactNumber;
-                        authResponse.Role = userRoles.RoleName;
-                        authResponse.MenuItemLists = MenuItemList;
-                        authResponse.Plants = Plants;
-                        authResponse.UserCode = user.UserCode;
-                        authResponse.Role_Id = userRoles.RoleID;
-                        authResponse.Token = GenerateToken(authResponse);
-                        return authResponse;
+                            authResponse.UserID = user.UserID;
+                            authResponse.UserName = user.UserName;
+                            authResponse.Email = user.Email;
+                            authResponse.ContactNumber = user.ContactNumber;
+                            authResponse.Role = userRoles.RoleName;
+                            authResponse.MenuItemLists = MenuItemList;
+                            authResponse.Plants = Plants;
+                            authResponse.UserCode = user.UserCode;
+                            authResponse.Role_Id = userRoles.RoleID;
+                            authResponse.Token = GenerateToken(authResponse);
+                            return authResponse.Token;
+
+                        }
+                        else
+                        {
+                            if (userRoles.RoleName.ToLower() != "administrator")
+                            {
+                                int attempt = user.WrongAttempt + 1;
+                                if (attempt == 5)
+                                {
+                                    user.IsLocked = true;
+                                }
+                                else
+                                {
+                                    user.IsLocked = false;
+                                    user.WrongAttempt = attempt;
+                                }
+                                await _dbContext.SaveChangesAsync();
+                            }
+                            throw new Exception("Username or password is wrong");
+                        }
                     }
                 }
                 else
@@ -138,7 +158,20 @@ namespace AREML.EPOD.Data.Repositories
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.Name, authenticationResponse.UserName),
-                new Claim(ClaimTypes.Role, authenticationResponse.Role)
+                new Claim(ClaimTypes.Role, authenticationResponse.Role),
+                new Claim(ClaimTypes.Email, authenticationResponse.Email),
+                new Claim("UserID",authenticationResponse.UserID.ToString()),
+                new Claim("UserCode",authenticationResponse.UserCode),
+                new Claim(ClaimTypes.MobilePhone,authenticationResponse.ContactNumber),
+                new Claim("RoleID",authenticationResponse.Role_Id.ToString()),
+                new Claim("Plants",string.Join(',',authenticationResponse.Plants)),
+                new Claim("MenuItems",string.Join(',',authenticationResponse.MenuItemLists)),
+                new Claim("UserName",authenticationResponse.UserName),
+                new Claim("Role",authenticationResponse.Role),
+                new Claim("Email",authenticationResponse.Email),
+                new Claim("ContactNumber",authenticationResponse.ContactNumber),
+                new Claim("IsChangePasswordRequired",authenticationResponse.IsChangePasswordRequired)
+
             };
             if (authenticationResponse.UserID != null && authenticationResponse.Role == "Admin")
             {
@@ -358,7 +391,7 @@ namespace AREML.EPOD.Data.Repositories
                 await _dbContext.SaveChangesAsync();
                 return "Password updated successfully.";
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 LogWriter.WriteToFile("AuthRepo/ResetPasswordWithSMSOTP/Exception :- ", ex);
                 throw ex;

@@ -12,7 +12,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
 {
     public interface IAuthenticationRepository
     {
-        Task<AuthenticationResponse> AuthenticateUser(LoginDetails loginDetails);
+        Task<string> AuthenticateUser(LoginDetails loginDetails);
         Task<bool> ForgotPassword(ForgotPassword forgotPassword);
         Task<string> ChangePassword(ChangePassword changePassword);
         Task<OTPResponseBody> PasswordResetSendSMSOTP(string username);
