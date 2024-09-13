@@ -4,6 +4,7 @@ using AREML.EPOD.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AREML.EPOD.Core.Migrations
 {
     [DbContext(typeof(AuthContext))]
-    partial class AuthContextModelSnapshot : ModelSnapshot
+    [Migration("20240912124306_dropFileColumns")]
+    partial class dropFileColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -87,12 +90,6 @@ namespace AREML.EPOD.Core.Migrations
 
                     b.Property<bool>("IS_ACTIVE")
                         .HasColumnType("bit");
-
-                    b.Property<bool>("IS_PROCESSED")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("MESSAGE")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("ATTACHMENT_ID");
 
@@ -848,12 +845,6 @@ namespace AREML.EPOD.Core.Migrations
 
                     b.Property<int>("HeaderId")
                         .HasColumnType("int");
-
-                    b.Property<bool>("IsProcessed")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

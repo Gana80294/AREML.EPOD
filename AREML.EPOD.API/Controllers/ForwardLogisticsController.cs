@@ -129,11 +129,11 @@ namespace AREML.EPOD.API.Controllers
             return Ok(await this._forwardRepository.DownloadActionHistoryLog(filter));
         }
 
-        [HttpPost]
-        public async Task<IActionResult> AddInvoiceAttachment()
-        {
-            return Ok(await this._forwardRepository.AddInvoiceAttachment());
-        }
+        //[HttpPost]
+        //public async Task<IActionResult> AddInvoiceAttachment()
+        //{
+        //    return Ok(await this._forwardRepository.AddInvoiceAttachment());
+        //}
 
         [HttpGet]
         public async Task<IActionResult> GetAllSavedInvoicesByUserID(Guid UserID)

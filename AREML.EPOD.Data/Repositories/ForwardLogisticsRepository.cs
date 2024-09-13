@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
+using Org.BouncyCastle.Asn1.X509;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Mail;
@@ -252,7 +253,6 @@ namespace AREML.EPOD.Data.Repositories
                                     (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
                                     (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
                                     (!isInvoiceNumber || (tb.ODIN.Contains(filterClass.InvoiceNumber) || tb.INV_NO.Contains(filterClass.InvoiceNumber))) && (!isLRNumber || tb.LR_NO == filterClass.LRNumber)
-                                    let invoiceQuantity = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     select new Invoice_Header_View
                                     {
                                         HEADER_ID = tb.HEADER_ID,
@@ -305,7 +305,7 @@ namespace AREML.EPOD.Data.Repositories
                                         TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
                                         DELIVERY_DATE = tb.DELIVERY_DATE,
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
-                                        INVOICE_QUANTITY = invoiceQuantity
+                                        INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).ToListAsync();
 
 
@@ -955,121 +955,121 @@ namespace AREML.EPOD.Data.Repositories
             }
         }
 
-        public async Task<bool> AddInvoiceAttachment()
-        {
-            var HeaderID = 0;
-            try
-            {
-                var request = _httpContextAccessor.HttpContext?.Request;
-                HeaderID = int.Parse(request.Form["HeaderID"].ToString());
-                var CreatedBy = request.Form["CreatedBy"].ToString();
+        //public async Task<bool> AddInvoiceAttachment()
+        //{
+        //    var HeaderID = 0;
+        //    try
+        //    {
+        //        var request = _httpContextAccessor.HttpContext?.Request;
+        //        HeaderID = int.Parse(request.Form["HeaderID"].ToString());
+        //        var CreatedBy = request.Form["CreatedBy"].ToString();
 
-                if (request.Form.Files.Count > 0)
-                {
-                    for (int i = 0; i < request.Form.Files.Count; i++)
-                    {
-                        var file = request.Form.Files[i];
-                        var FileName = file.FileName;
-                        using (var memoryStream = new MemoryStream())
-                        {
-                            await file.CopyToAsync(memoryStream);
-                            byte[] fileBytes = memoryStream.ToArray();
-                            if (fileBytes.Length > 0)
-                            {
-                                ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(FileName, fileBytes);
-                                P_INV_HEADER_DETAIL header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.HEADER_ID == HeaderID);
+        //        if (request.Form.Files.Count > 0)
+        //        {
+        //            for (int i = 0; i < request.Form.Files.Count; i++)
+        //            {
+        //                var file = request.Form.Files[i];
+        //                var FileName = file.FileName;
+        //                using (var memoryStream = new MemoryStream())
+        //                {
+        //                    await file.CopyToAsync(memoryStream);
+        //                    byte[] fileBytes = memoryStream.ToArray();
+        //                    if (fileBytes.Length > 0)
+        //                    {
+        //                        ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(FileName, fileBytes);
+        //                        P_INV_HEADER_DETAIL header = await _dbContext.P_INV_HEADER_DETAIL.FirstOrDefaultAsync(t => t.HEADER_ID == HeaderID);
 
-                                var plGrps = await _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToListAsync();
-                                if (plGrps != null && plGrps.Count > 0 && plGrps.Contains(header.PLANT_CODE))
-                                {
-                                    var previousAttachment = await _dbContext.P_INV_ATTACHMENT.FirstOrDefaultAsync(x => x.HEADER_ID == HeaderID);
+        //                        var plGrps = await _dbContext.PlantGroupPlantMaps.Where(x => x.PlantGroupId == 4).Select(p => p.PlantCode).ToListAsync();
+        //                        if (plGrps != null && plGrps.Count > 0 && plGrps.Contains(header.PLANT_CODE))
+        //                        {
+        //                            var previousAttachment = await _dbContext.P_INV_ATTACHMENT.FirstOrDefaultAsync(x => x.HEADER_ID == HeaderID);
 
-                                    if (previousAttachment == null)
-                                    {
-                                        P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                        attachment.HEADER_ID = HeaderID;
-                                        attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
-                                        attachment.DOCUMENT_TYPE = "application/pdf";
-                                        attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
-                                        attachment.CREATED_BY = CreatedBy;
-                                        attachment.CREATED_ON = DateTime.Now;
-                                        attachment.IS_ACTIVE = true;
-                                        _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                        await _dbContext.SaveChangesAsync();
-                                    }
-                                    else
-                                    {
-                                        var docHistory = new DocumentHistory();
-                                        docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                        docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
-                                        docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
-                                        docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                        docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                        docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                        _dbContext.DocumentHistories.Add(docHistory);
-                                        previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
-                                        previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
-                                        previousAttachment.CREATED_ON = DateTime.Now;
-                                        await _dbContext.SaveChangesAsync();
-                                    }
-                                }
-                                else
-                                {
-                                    var headerList = await _dbContext.P_INV_HEADER_DETAIL.Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE).Select(t => t.HEADER_ID).ToListAsync();
-                                    foreach (var headerId in headerList)
-                                    {
-                                        var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
+        //                            if (previousAttachment == null)
+        //                            {
+        //                                P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+        //                                attachment.HEADER_ID = HeaderID;
+        //                                attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+        //                                attachment.DOCUMENT_TYPE = "application/pdf";
+        //                                attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+        //                                attachment.CREATED_BY = CreatedBy;
+        //                                attachment.CREATED_ON = DateTime.Now;
+        //                                attachment.IS_ACTIVE = true;
+        //                                _dbContext.P_INV_ATTACHMENT.Add(attachment);
+        //                                await _dbContext.SaveChangesAsync();
+        //                            }
+        //                            else
+        //                            {
+        //                                var docHistory = new DocumentHistory();
+        //                                docHistory.HeaderId = previousAttachment.HEADER_ID;
+        //                                docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
+        //                                docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
+        //                                docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+        //                                docHistory.CreatedOn = previousAttachment.CREATED_ON;
+        //                                docHistory.CreatedBy = previousAttachment.CREATED_BY;
+        //                                _dbContext.DocumentHistories.Add(docHistory);
+        //                                previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+        //                                previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+        //                                previousAttachment.CREATED_ON = DateTime.Now;
+        //                                await _dbContext.SaveChangesAsync();
+        //                            }
+        //                        }
+        //                        else
+        //                        {
+        //                            var headerList = await _dbContext.P_INV_HEADER_DETAIL.Where(t => t.LR_NO == header.LR_NO && t.CUSTOMER == header.CUSTOMER && t.LR_DATE == header.LR_DATE).Select(t => t.HEADER_ID).ToListAsync();
+        //                            foreach (var headerId in headerList)
+        //                            {
+        //                                var previousAttachment = _dbContext.P_INV_ATTACHMENT.FirstOrDefault(x => x.HEADER_ID == headerId);
 
-                                        if (previousAttachment == null)
-                                        {
-                                            P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
-                                            attachment.HEADER_ID = headerId;
-                                            attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
-                                            attachment.DOCUMENT_TYPE = "application/pdf";
-                                            attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
-                                            attachment.CREATED_BY = CreatedBy;
-                                            attachment.CREATED_ON = DateTime.Now;
-                                            attachment.IS_ACTIVE = true;
-                                            _dbContext.P_INV_ATTACHMENT.Add(attachment);
-                                            await _dbContext.SaveChangesAsync();
-                                        }
-                                        else
-                                        {
-                                            var docHistory = new DocumentHistory();
-                                            docHistory.HeaderId = previousAttachment.HEADER_ID;
-                                            docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
-                                            docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
-                                            docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
-                                            docHistory.CreatedOn = previousAttachment.CREATED_ON;
-                                            docHistory.CreatedBy = previousAttachment.CREATED_BY;
-                                            _dbContext.DocumentHistories.Add(docHistory);
-                                            previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
-                                            previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
-                                            previousAttachment.CREATED_ON = DateTime.Now;
-                                            await _dbContext.SaveChangesAsync();
-                                        }
-                                    }
-                                }
+        //                                if (previousAttachment == null)
+        //                                {
+        //                                    P_INV_ATTACHMENT attachment = new P_INV_ATTACHMENT();
+        //                                    attachment.HEADER_ID = headerId;
+        //                                    attachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+        //                                    attachment.DOCUMENT_TYPE = "application/pdf";
+        //                                    attachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+        //                                    attachment.CREATED_BY = CreatedBy;
+        //                                    attachment.CREATED_ON = DateTime.Now;
+        //                                    attachment.IS_ACTIVE = true;
+        //                                    _dbContext.P_INV_ATTACHMENT.Add(attachment);
+        //                                    await _dbContext.SaveChangesAsync();
+        //                                }
+        //                                else
+        //                                {
+        //                                    var docHistory = new DocumentHistory();
+        //                                    docHistory.HeaderId = previousAttachment.HEADER_ID;
+        //                                    docHistory.FileName = previousAttachment.ATTACHMENT_NAME;
+        //                                    docHistory.FileContent = previousAttachment.ATTACHMENT_FILE;
+        //                                    docHistory.FileType = previousAttachment.DOCUMENT_TYPE;
+        //                                    docHistory.CreatedOn = previousAttachment.CREATED_ON;
+        //                                    docHistory.CreatedBy = previousAttachment.CREATED_BY;
+        //                                    _dbContext.DocumentHistories.Add(docHistory);
+        //                                    previousAttachment.ATTACHMENT_NAME = convertedAttachment.Filename;
+        //                                    previousAttachment.ATTACHMENT_FILE = convertedAttachment.PDFcontent;
+        //                                    previousAttachment.CREATED_ON = DateTime.Now;
+        //                                    await _dbContext.SaveChangesAsync();
+        //                                }
+        //                            }
+        //                        }
 
-                            }
+        //                    }
 
-                        }
-                    }
-                    await UpdateInvoiceStatus(HeaderID, "Confirmed");
-                }
-                else
-                {
-                    throw new Exception("No files found");
-                }
-            }
-            catch (Exception ex)
-            {
-                await UpdateInvoiceStatus(HeaderID, "Saved");
-                throw ex;
+        //                }
+        //            }
+        //            await UpdateInvoiceStatus(HeaderID, "Confirmed");
+        //        }
+        //        else
+        //        {
+        //            throw new Exception("No files found");
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        await UpdateInvoiceStatus(HeaderID, "Saved");
+        //        throw ex;
 
-            }
-            return true;
-        }
+        //    }
+        //    return true;
+        //}
 
 
         private async Task UpdateInvoiceStatus(int HeaderID, string Status)
@@ -1832,21 +1832,20 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                var response = new HttpResponseMessage(HttpStatusCode.OK);
+                string path = _networkCredential.ForwardAttachmentsPath;
+                string sharedFolderUserName = _networkCredential.SharedFolderUserName;
+                string sharedFolderPassword = _networkCredential.SharedFolderPassword;
+                string sharedFolderDomain = _networkCredential.SharedFolderDomain;
 
                 var att = await _dbContext.DocumentHistories.Where(x => x.Id == id).FirstOrDefaultAsync();
-                if (att != null && att.FileContent.Length > 0)
+                if (att != null && !string.IsNullOrEmpty(att.FilePath))
                 {
-                    byte[] bytes = att.FileContent;
-                    var statuscode = HttpStatusCode.OK;
-                    response.Content = new ByteArrayContent(bytes);
-                    response.Content.Headers.Add("x-filename", att.FileName);
-                    response.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-                    response.Content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment")
+                    byte[] bytes;
+                    using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
                     {
-                        FileName = att.FileName
-                    };
-                    return bytes.ToArray();
+                        bytes = File.ReadAllBytes(att.FilePath);
+                    }
+                    return bytes;
                 }
                 return null;
             }
@@ -2238,8 +2237,13 @@ namespace AREML.EPOD.Data.Repositories
                     IFormFileCollection postedfiles = request.Form.Files;
                     if (postedfiles.Count > 0)
                     {
+                        var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
                         var ext = postedfiles[0].FileName.ToString().Split('.')[postedfiles[0].FileName.ToString().Split('.').Length - 1];
-                        fileName = invoiceUpdate.HEADER_ID.ToString().Replace("/", "_") + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+                        //fileName = invoiceUpdate.HEADER_ID.ToString().Replace("/", "_") + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+
+                        string folderPath = Path.Combine(path, header.INV_DATE.Value.ToString("yyyyMM"));
+                        fileName = $"{header.CUSTOMER}_{header.LR_NO}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.{ext}";
+
                         using (Stream st = postedfiles[0].OpenReadStream())
                         {
                             using (BinaryReader br = new BinaryReader(st))
@@ -2249,11 +2253,16 @@ namespace AREML.EPOD.Data.Repositories
                                 {
                                     ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
-                                    string fullPath = Path.Combine(path, convertedAttachment.Filename);
+                                    string fullPath = Path.Combine(folderPath, convertedAttachment.Filename);
                                     try
                                     {
                                         using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
                                         {
+                                            // Ensure the directory exists
+                                            if (!Directory.Exists(folderPath))
+                                            {
+                                                Directory.CreateDirectory(folderPath);
+                                            }
                                             File.WriteAllBytes(fullPath, convertedAttachment.PDFcontent);
                                         }
                                     }
@@ -2273,7 +2282,6 @@ namespace AREML.EPOD.Data.Repositories
                                         }
                                         throw ex;
                                     }
-                                    var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
 
                                     if (header == null)
                                     {
@@ -2382,8 +2390,13 @@ namespace AREML.EPOD.Data.Repositories
                     IFormFileCollection postedfiles = request.Form.Files;
                     if (postedfiles.Count > 0)
                     {
+                        var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+
                         var ext = postedfiles[0].FileName.ToString().Split('.')[postedfiles[0].FileName.ToString().Split('.').Length - 1];
-                        fileName = invoiceUpdate.HEADER_ID.ToString().Replace("/", "_") + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+                        //fileName = invoiceUpdate.HEADER_ID.ToString().Replace("/", "_") + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+                        string folderPath = Path.Combine(path, header.INV_DATE.Value.ToString("yyyyMM"));
+                        fileName = $"{header.CUSTOMER}_{header.LR_NO}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.{ext}";
+
                         using (Stream st = postedfiles[0].OpenReadStream())
                         {
                             using (BinaryReader br = new BinaryReader(st))
@@ -2393,11 +2406,16 @@ namespace AREML.EPOD.Data.Repositories
                                 {
                                     ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
-                                    string fullPath = Path.Combine(path, convertedAttachment.Filename);
+                                    string fullPath = Path.Combine(folderPath, convertedAttachment.Filename);
                                     try
                                     {
                                         using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
                                         {
+                                            // Ensure the directory exists
+                                            if (!Directory.Exists(folderPath))
+                                            {
+                                                Directory.CreateDirectory(folderPath);
+                                            }
                                             File.WriteAllBytes(fullPath, convertedAttachment.PDFcontent);
                                         }
                                     }
@@ -2417,7 +2435,7 @@ namespace AREML.EPOD.Data.Repositories
                                         }
                                         throw ex;
                                     }
-                                    var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(x => x.HEADER_ID == invoiceUpdate.HEADER_ID && x.IS_ACTIVE);
+
                                     if (header == null)
                                     {
                                         throw new Exception("Unable to find the invoice.");
@@ -2632,8 +2650,11 @@ namespace AREML.EPOD.Data.Repositories
                     IFormFileCollection postedfiles = request.Form.Files;
                     if (postedfiles.Count > 0)
                     {
+
                         var ext = postedfiles[0].FileName.ToString().Split('.')[postedfiles[0].FileName.ToString().Split('.').Length - 1];
-                        fileName = header.HEADER_ID.ToString().Replace("/", "_") + "_" + header.CUSTOMER + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+                        //fileName = header.HEADER_ID.ToString().Replace("/", "_") + "_" + header.CUSTOMER + "_" + DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "") + "." + ext;
+                        string folderPath = Path.Combine(path, header.INV_DATE.Value.ToString("yyyyMM"));
+                        fileName = $"{header.CUSTOMER}_{header.LR_NO}_{DateTime.Now.ToString("yyyyMMddHHmmss").Replace(":", "").Replace("/", "")}.{ext}";
                         using (Stream st = postedfiles[0].OpenReadStream())
                         {
                             using (BinaryReader br = new BinaryReader(st))
@@ -2643,11 +2664,16 @@ namespace AREML.EPOD.Data.Repositories
                                 {
                                     ConvertedAttachmentProps convertedAttachment = _pdfCompresser.ConvertImagetoPDF(fileName, fileBytes);
                                     fileName = convertedAttachment.Filename;
-                                    string fullPath = Path.Combine(path, convertedAttachment.Filename);
+                                    string fullPath = Path.Combine(folderPath, convertedAttachment.Filename);
                                     try
                                     {
                                         using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
                                         {
+                                            // Ensure the directory exists
+                                            if (!Directory.Exists(folderPath))
+                                            {
+                                                Directory.CreateDirectory(folderPath);
+                                            }
                                             File.WriteAllBytes(fullPath, convertedAttachment.PDFcontent);
                                         }
                                     }
