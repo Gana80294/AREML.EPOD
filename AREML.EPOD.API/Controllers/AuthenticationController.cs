@@ -56,5 +56,11 @@ namespace AREML.EPOD.API.Controllers
             var result = await this._auth.ResetPasswordWithSMSOTP(otpBody);
             return Ok(new { message = result });
         }
+
+        [HttpPost]
+        public async Task<IActionResult> AuthenticateMobileUser(LoginDetails loginDetails)
+        {
+            return Ok(await _auth.AuthenticateMobileUser(loginDetails));
+        }
     }
 }

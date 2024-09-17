@@ -224,6 +224,18 @@ namespace AREML.EPOD.API.Controllers
         {
             return Ok(await _masterRepository.GetUserManual());
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserManualPdf()
+        {
+            return Ok(await _masterRepository.GetUserManualPdf());
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetUserManualVideo()
+        {
+            return Ok(await _masterRepository.GetUserManualVideo());
+        }
         #endregion
 
         #region Reasons

@@ -1,4 +1,5 @@
-﻿using AREML.EPOD.Core.Dtos.Response;
+﻿using AREML.EPOD.Core.Configurations;
+using AREML.EPOD.Core.Dtos.Response;
 using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Mappings;
@@ -6,6 +7,7 @@ using AREML.EPOD.Core.Entities.Master;
 using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,10 +20,12 @@ namespace AREML.EPOD.Data.Repositories
     public class MobileRepository : IMobileRepository
     {
         private AuthContext _dbContext;
+        private readonly NetworkCredentials _networkCredential;
 
-        public MobileRepository(AuthContext context)
+        public MobileRepository(AuthContext context, IConfiguration configuration)
         {
             this._dbContext = context;
+            _networkCredential = configuration.GetSection("NetworkCredentials").Get<NetworkCredentials>();
         }
 
 
@@ -1249,13 +1253,24 @@ namespace AREML.EPOD.Data.Repositories
 
         public async Task<AttachmentResponse> DowloandPODDocument(int AttachmentID)
         {
+            var res = new AttachmentResponse();
             try
             {
+                string path = _networkCredential.ForwardAttachmentsPath;
+                string sharedFolderUserName = _networkCredential.SharedFolderUserName;
+                string sharedFolderPassword = _networkCredential.SharedFolderPassword;
+                string sharedFolderDomain = _networkCredential.SharedFolderDomain;
+
                 P_INV_ATTACHMENT p_INV_ATTACHMENT = await ((IQueryable<P_INV_ATTACHMENT>)_dbContext.P_INV_ATTACHMENT).Where((P_INV_ATTACHMENT x) => x.ATTACHMENT_ID == AttachmentID).FirstOrDefaultAsync();
-                if (p_INV_ATTACHMENT != null && p_INV_ATTACHMENT.ATTACHMENT_FILE.Length != 0)
+                if (p_INV_ATTACHMENT != null && !string.IsNullOrEmpty(p_INV_ATTACHMENT.FILE_PATH))
                 {
-                    byte[] aTTACHMENT_FILE = p_INV_ATTACHMENT.ATTACHMENT_FILE;
-                    return new AttachmentResponse();
+                    using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
+                    {
+                        res.FileName = p_INV_ATTACHMENT.FILE_NAME;
+                        res.FileContent = File.ReadAllBytes(p_INV_ATTACHMENT.FILE_PATH);
+                        res.Extension = p_INV_ATTACHMENT.DOCUMENT_TYPE;
+                    }
+                    return res;
                 }
                 else
                     throw new Exception("No Attachment found.");

@@ -36,7 +36,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<bool> CreateUserActionHistory(UserActionHistory log);
         Task<List<UserActionHistoryView>> GetUserActionHistories(ActionHistoryFilter filter);
         Task<HttpResponseMessage> DownloadActionHistoryLog(ActionHistoryFilter filter);
-        Task<bool> AddInvoiceAttachment();
+        //Task<bool> AddInvoiceAttachment();
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoicesByUserID(Guid UserID);
         Task<List<P_INV_HEADER_DETAIL>> GetAllSavedInvoices();
         Task<List<InvoiceHeaderDetails>> FilterSavedInvoicesByUserID(FilterClass filterClass);

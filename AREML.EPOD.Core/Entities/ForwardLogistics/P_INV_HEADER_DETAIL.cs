@@ -28,6 +28,7 @@ namespace AREML.EPOD.Core.Entities.ForwardLogistics
         public string CUSTOMER { get; set; }
         [MaxLength(50)]
         public string CUSTOMER_NAME { get; set; }
+        public string SHIP_TO_PARTY_CODE { get; set; }
 
         public string CUSTOMER_GROUP { get; set; }
         public string VEHICLE_NO { get; set; }

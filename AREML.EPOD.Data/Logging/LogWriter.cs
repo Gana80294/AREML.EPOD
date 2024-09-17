@@ -91,7 +91,6 @@ namespace AREML.EPOD.Data.Logging
             }
         }
 
-
         public static void WriteToFile(Exception ex)
         {
             StreamWriter sw = null;
@@ -127,6 +126,42 @@ namespace AREML.EPOD.Data.Logging
 
             }
 
+        }
+    
+    
+    
+        public static void WriteSensitiveLog(string query)
+        {
+            StreamWriter sw = null;
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "QueryLogs");
+                if (!Directory.Exists(path))
+                {
+                    Directory.CreateDirectory(path);
+                }
+                DateTime dt = DateTime.Today;
+                DateTime ystrdy = DateTime.Today.AddDays(-15);//keep 15 days backup
+                string yday = ystrdy.ToString("yyyyMMdd");
+                string today = dt.ToString("yyyyMMdd");
+                string Log = today + ".txt";
+                if (File.Exists(AppDomain.CurrentDomain.BaseDirectory + "\\QueryLogs\\Log_" + yday + ".txt"))
+                {
+                    System.GC.Collect();
+                    System.GC.WaitForPendingFinalizers();
+                    File.Delete(AppDomain.CurrentDomain.BaseDirectory + "\\QueryLogs\\Log_" + yday + ".txt");
+                }
+                sw = new StreamWriter(AppDomain.CurrentDomain.BaseDirectory + "\\QueryLogs\\Log_" + Log, true);
+                sw.WriteLine("***** " + DateTime.Now.ToString() + " *****");
+                sw.WriteLine($"Executed SQL Query: {query}");
+                sw.WriteLine(String.Concat(Enumerable.Repeat("*", 25)));
+                sw.Flush();
+                sw.Close();
+            }
+            catch
+            {
+
+            }
         }
     }
 }

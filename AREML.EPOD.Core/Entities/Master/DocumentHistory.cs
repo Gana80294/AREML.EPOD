@@ -14,9 +14,10 @@ namespace AREML.EPOD.Core.Entities.Master
         public int HeaderId { get; set; }
         public string FileName { get; set; }
         public string FileType { get; set; }
-        public byte[] FileContent { get; set; }
         public string CreatedBy { get; set; }
         public DateTime CreatedOn { get; set; }
         public string FilePath { get; set; }
+        public bool IsProcessed { get; set; }
+        public string Message { get; set; }
     }
 }
