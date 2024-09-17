@@ -1,8 +1,10 @@
 ﻿using AREML.EPOD.Core.Dtos.ForwardLogistics;
 using AREML.EPOD.Core.Dtos.Response;
+using AREML.EPOD.Core.Entities;
 using AREML.EPOD.Core.Entities.ForwardLogistics;
 using AREML.EPOD.Core.Entities.Logs;
 using AREML.EPOD.Core.Entities.Master;
+using AREML.EPOD.Data.Logging;
 using AREML.EPOD.Interfaces.IRepositories;
 using iTextSharp.text;
 using Microsoft.AspNetCore.Http;
@@ -15,10 +17,12 @@ namespace AREML.EPOD.API.Controllers
     [ApiController]
     public class ForwardLogisticsController : ControllerBase
     {
+        private AuthContext _dbContext;
         private IForwardLogisticsRepository _forwardRepository;
-        public ForwardLogisticsController(IForwardLogisticsRepository forwardRepository)
+        public ForwardLogisticsController(IForwardLogisticsRepository forwardRepository,AuthContext ctx)
         {
             this._forwardRepository = forwardRepository;
+            _dbContext = ctx;
         }
 
 
@@ -329,6 +333,141 @@ namespace AREML.EPOD.API.Controllers
         {
             return Ok(await _forwardRepository.ReUploadLR());
         }
+        #endregion
+
+        #region Fetron API integration
+
+        [HttpPost]
+        [Route("InsertTrackingLink")]
+        public async Task<IActionResult> InsertTrackingLink(InsertVehicleTrackingLink tracking)
+        {
+            LogWriter.WriteProcessLog("****** Insert Tracking Link Details Started ******");
+            LogWriter.WriteProcessLog($"Payload - {JsonConvert.SerializeObject(tracking)}");
+            Response response = new Response();
+            try
+            {
+                bool isFreightOrder = tracking.foNumber != null;
+                bool isCustomer = tracking.customerCode != null;
+                bool isVehicleNo = tracking.vehicleNumber != null;
+
+                if (isFreightOrder && isCustomer && isVehicleNo)
+                {
+                    var headers = this._dbContext.P_INV_HEADER_DETAIL.Where(x => (x.FREIGHT_ORDER.ToLower() == tracking.foNumber.ToLower() || x.FREIGHT_ORDER.ToLower().Contains(tracking.foNumber.ToLower()))
+                                    && (x.CUSTOMER.ToLower() == tracking.customerCode.ToLower() || x.CUSTOMER.ToLower().Contains(tracking.customerCode.ToLower()) || tracking.customerCode.ToLower().Contains(x.CUSTOMER.ToLower()) ||
+                                    x.SHIP_TO_PARTY_CODE.ToLower() == tracking.customerCode.ToLower() || x.SHIP_TO_PARTY_CODE.ToLower().Contains(tracking.customerCode.ToLower()) || tracking.customerCode.ToLower().Contains(x.SHIP_TO_PARTY_CODE.ToLower()))
+                                    && (x.VEHICLE_NO.ToLower() == tracking.vehicleNumber.ToLower() || x.VEHICLE_NO.ToLower().Contains(tracking.vehicleNumber.ToLower()))).ToList();
+
+                    if (headers.Count > 0)
+                    {
+                        foreach (var header in headers)
+                        {
+                            header.TRACKING_LINK = tracking.trackingLink;
+                        }
+                        await _dbContext.SaveChangesAsync();
+                        response.Message = "Tracking link saved successfully";
+                        response.StatusCode = 200;
+                    }
+                    else
+                    {
+                        response.Message = $"Invoice not found with the FO Number - {tracking.foNumber} and Customer - {tracking.customerCode} and Vehicle No - {tracking.vehicleNumber}";
+                        response.StatusCode = 400;
+                    }
+                }
+                else
+                {
+                    response.Message = !isFreightOrder ? "FO Number can not be empty" :
+                        !isCustomer ? "Customer code can not be empty" :
+                        !isVehicleNo ? "Vehicle Number can not be empty" : "";
+                    response.StatusCode = 400;
+                }
+                LogWriter.WriteProcessLog(response.Message);
+                LogWriter.WriteProcessLog("****** Insert Tracking Link Details Ended ******");
+                if (response.StatusCode == 400)
+                {
+                    return BadRequest(JsonConvert.SerializeObject(response));
+                }
+                else
+                {
+                    return Ok(JsonConvert.SerializeObject(response));
+                }
+
+            }
+            catch (Exception ex)
+            {
+                response.Message = ex.Message;
+                response.StatusCode = 400;
+                LogWriter.WriteToFile("InsertTrackingLink :- ", ex);
+                LogWriter.WriteProcessLog("****** Insert Tracking Link Details Ended ******");
+                return BadRequest(JsonConvert.SerializeObject(response));
+            }
+        }
+
+        [HttpPost]
+        [Route("InsertDeliveryDetails")]
+        public async Task<IActionResult> InsertDeliveryDetails(InsertDeliveryDetails deliveryDetails)
+        {
+            LogWriter.WriteProcessLog("****** Insert Delivery Details Started ******");
+            LogWriter.WriteProcessLog($"Payload - {JsonConvert.SerializeObject(deliveryDetails)}");
+            Response response = new Response();
+            try
+            {
+                bool isFreightOrder = deliveryDetails.foNumber != null;
+                bool isCustomer = deliveryDetails.customerCode != null;
+                bool isVehicleNo = deliveryDetails.vehicleNumber != null;
+
+                if (isFreightOrder && isCustomer && isVehicleNo)
+                {
+                    var headers = this._dbContext.P_INV_HEADER_DETAIL.Where(x => (x.FREIGHT_ORDER.ToLower() == deliveryDetails.foNumber.ToLower() || x.FREIGHT_ORDER.ToLower().Contains(deliveryDetails.foNumber.ToLower()))
+                        && (x.CUSTOMER.ToLower() == deliveryDetails.customerCode.ToLower() || x.CUSTOMER.ToLower().Contains(deliveryDetails.customerCode.ToLower()) || deliveryDetails.customerCode.ToLower().Contains(x.CUSTOMER.ToLower()) ||
+                        x.SHIP_TO_PARTY_CODE.ToLower() == deliveryDetails.customerCode.ToLower() || x.SHIP_TO_PARTY_CODE.ToLower().Contains(deliveryDetails.customerCode.ToLower()) || deliveryDetails.customerCode.ToLower().Contains(x.SHIP_TO_PARTY_CODE.ToLower()))
+                        && (x.VEHICLE_NO.ToLower() == deliveryDetails.vehicleNumber.ToLower() || x.VEHICLE_NO.ToLower().Contains(deliveryDetails.vehicleNumber.ToLower()))).ToList();
+                    if (headers.Count > 0)
+                    {
+                        foreach (var header in headers)
+                        {
+                            header.DELIVERY_DATE = deliveryDetails.deliveryDate;
+                            header.DELIVERY_TIME = deliveryDetails.deliveryTime;
+                            header.TOTAL_TRAVEL_TIME = deliveryDetails.totalTravelTime / (60 * 60 * 1000);
+                            header.TOTAL_DISTANCE = deliveryDetails.totalDistance;
+                        }
+                        await _dbContext.SaveChangesAsync();
+                        response.Message = "Delivery details updated successfully";
+                        response.StatusCode = 200;
+                    }
+                    else
+                    {
+                        response.Message = $"Invoice not found with the FO Number - {deliveryDetails.foNumber} and Customer - {deliveryDetails.customerCode}";
+                        response.StatusCode = 400;
+                    }
+                }
+                else
+                {
+                    response.Message = !isFreightOrder ? "FO Number can not be empty" :
+                        !isCustomer ? "Customer code can not be empty" :
+                        !isVehicleNo ? "Vehicle Number can not be empty" : "";
+                    response.StatusCode = 400;
+                }
+                LogWriter.WriteProcessLog(response.Message);
+                LogWriter.WriteProcessLog("****** Insert Delivery Details Ended ******");
+                if (response.StatusCode == 400)
+                {
+                    return BadRequest(JsonConvert.SerializeObject(response));
+                }
+                else
+                {
+                    return Ok(JsonConvert.SerializeObject(response));
+                }
+            }
+            catch (Exception ex)
+            {
+                response.Message = ex.Message;
+                response.StatusCode = 400;
+                LogWriter.WriteToFile("InsertDeliveryDetails :- ", ex);
+                LogWriter.WriteProcessLog("****** Insert Delivery Details Ended ******");
+                return BadRequest(JsonConvert.SerializeObject(response));
+            }
+        }
+
         #endregion
     }
 }

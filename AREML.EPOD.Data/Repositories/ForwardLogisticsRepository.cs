@@ -248,11 +248,15 @@ namespace AREML.EPOD.Data.Repositories
                 bool isLRNumber = !string.IsNullOrEmpty(filterClass.LRNumber);
                 bool isFromDate = filterClass.StartDate.HasValue;
                 bool isEndDate = filterClass.EndDate.HasValue;
+
+                LogWriter.WriteSensitiveLog("Filter invoive starts");
+                LogWriter.WriteSensitiveLog(JsonConvert.SerializeObject(filterClass));
                 var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                    where tb.CUSTOMER == filterClass.UserCode && (!isStatus || filterClass.Status.Any(x => x == tb.STATUS)) && tb.IS_ACTIVE &&
+                                    where tb.CUSTOMER == filterClass.UserCode && (!isStatus || filterClass.Status.Contains(tb.STATUS)) && tb.IS_ACTIVE &&
                                     (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
                                     (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
-                                    (!isInvoiceNumber || (tb.ODIN.Contains(filterClass.InvoiceNumber) || tb.INV_NO.Contains(filterClass.InvoiceNumber))) && (!isLRNumber || tb.LR_NO == filterClass.LRNumber)
+                                    (!isInvoiceNumber || (tb.ODIN.Contains(filterClass.InvoiceNumber) || tb.INV_NO.Contains(filterClass.InvoiceNumber))) && 
+                                    (!isLRNumber || tb.LR_NO == filterClass.LRNumber)
                                     select new Invoice_Header_View
                                     {
                                         HEADER_ID = tb.HEADER_ID,
@@ -308,7 +312,7 @@ namespace AREML.EPOD.Data.Repositories
                                         INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).ToListAsync();
 
-
+                LogWriter.WriteSensitiveLog("Filter invoive ends");
                 var PDDList = new List<Invoice_Header_View>();
                 if (filterClass.LeadTime.Contains("within") && filterClass.LeadTime.Count == 1)
                 {
@@ -1991,6 +1995,7 @@ namespace AREML.EPOD.Data.Repositories
             p_INV_HEADER_DETAIL.INV_TYPE = insertInvoiceDetail.INV_TYPE;
             p_INV_HEADER_DETAIL.CUSTOMER = insertInvoiceDetail.CUSTOMER;
             p_INV_HEADER_DETAIL.CUSTOMER_NAME = insertInvoiceDetail.CUSTOMER_NAME;
+            p_INV_HEADER_DETAIL.SHIP_TO_PARTY_CODE = insertInvoiceDetail.SHIP_TO_PARTY_CODE;
             p_INV_HEADER_DETAIL.ORGANIZATION = insertInvoiceDetail.ORGANIZATION;
             p_INV_HEADER_DETAIL.DIVISION = insertInvoiceDetail.DIVISION;
             p_INV_HEADER_DETAIL.VEHICLE_NO = insertInvoiceDetail.VEHICLE_NO;
@@ -2120,6 +2125,7 @@ namespace AREML.EPOD.Data.Repositories
             header.INV_TYPE = insertInvoiceDetail.INV_TYPE;
             header.CUSTOMER = insertInvoiceDetail.CUSTOMER;
             header.CUSTOMER_NAME = insertInvoiceDetail.CUSTOMER_NAME;
+            header.SHIP_TO_PARTY_CODE = insertInvoiceDetail.SHIP_TO_PARTY_CODE;
             header.ORGANIZATION = insertInvoiceDetail.ORGANIZATION;
             header.DIVISION = insertInvoiceDetail.DIVISION;
             header.VEHICLE_NO = insertInvoiceDetail.VEHICLE_NO;

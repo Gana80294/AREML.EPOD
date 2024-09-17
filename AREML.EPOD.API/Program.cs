@@ -41,10 +41,13 @@ namespace AREML.EPOD.API
             //    builder.Services.AddCors(options => { options.AddPolicy("cors", a => a.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()); });
             //}
 
-            builder.Services.AddDbContext<AuthContext>(opts => opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext"), sqlOptions =>
+            builder.Services.AddDbContext<AuthContext>(opts => 
+            opts.UseSqlServer(builder.Configuration.GetConnectionString("DBContext"), 
+            
+            sqlOptions =>
             {
                 sqlOptions.CommandTimeout(180);
-            }), ServiceLifetime.Scoped);
+            }).LogTo(query => { LogWriter.WriteSensitiveLog(query); }), ServiceLifetime.Scoped);
 
 
             // Add Configuration Settings

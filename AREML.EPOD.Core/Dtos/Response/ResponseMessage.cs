@@ -12,4 +12,10 @@ namespace AREML.EPOD.Core.Dtos.Response
         public string Message { get; set; }
         public int Status { get; set; }
     }
+
+    public class Response
+    {
+        public string Message { get; set; }
+        public int StatusCode { get; set; }
+    }
 }
