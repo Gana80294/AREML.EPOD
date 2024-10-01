@@ -1202,7 +1202,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "saved" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -1214,36 +1213,68 @@ namespace AREML.EPOD.Data.Repositories
                                         && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName.ToLower()))
                                         && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
-                    return result;
+                    var data = (from tb in result
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    return data;
                 }
                 else
                 {

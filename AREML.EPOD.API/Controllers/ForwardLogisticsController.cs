@@ -338,7 +338,6 @@ namespace AREML.EPOD.API.Controllers
         #region Fetron API integration
 
         [HttpPost]
-        [Route("InsertTrackingLink")]
         public async Task<IActionResult> InsertTrackingLink(InsertVehicleTrackingLink tracking)
         {
             LogWriter.WriteProcessLog("****** Insert Tracking Link Details Started ******");
@@ -403,7 +402,6 @@ namespace AREML.EPOD.API.Controllers
         }
 
         [HttpPost]
-        [Route("InsertDeliveryDetails")]
         public async Task<IActionResult> InsertDeliveryDetails(InsertDeliveryDetails deliveryDetails)
         {
             LogWriter.WriteProcessLog("****** Insert Delivery Details Started ******");
