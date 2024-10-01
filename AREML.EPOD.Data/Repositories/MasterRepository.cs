@@ -33,13 +33,14 @@ namespace AREML.EPOD.Data.Repositories
         private IMapper _mapper;
         private int _tokenTimespan = 0;
 
-        public MasterRepository(AuthContext ctx, IConfiguration configuration, PasswordEncryptor passwordEncryptor, IMapper mapper, ExcelHelper excelHelper)
+        public MasterRepository(AuthContext ctx, IConfiguration configuration, PasswordEncryptor passwordEncryptor, IMapper mapper, ExcelHelper excelHelper, EmailHelper emailHelper)
         {
             _ctx = ctx;
             _configuration = configuration;
             _passwordEncryptor = passwordEncryptor;
             _mapper = mapper;
             _excelHelper = excelHelper;
+            _emailHelper = emailHelper;
         }
 
 
@@ -47,108 +48,98 @@ namespace AREML.EPOD.Data.Repositories
 
         public async Task<bool> CreateUser(UserWithRole userWithRole)
         {
-            try
-            {
-                // Creating User
-                User user1 = (from tb1 in _ctx.Users
-                              where tb1.UserCode == userWithRole.UserCode && tb1.IsActive == true
-                              select tb1).FirstOrDefault();
-
-                if (user1 == null)
+            using(var transaction = _ctx.Database.BeginTransaction()){
+                try
                 {
-                    string DefaultPassword = _configuration["AppSettings:DefaultPassword"];
-                    var user = _mapper.Map<User>(userWithRole);
-                    user.UserID = Guid.NewGuid();
-                    user.Password = _passwordEncryptor.Encrypt(userWithRole.Password, true);
-                    user.CreatedBy = userWithRole.CreatedBy;
-                    user.IsActive = true;
-                    user.IsLocked = false;
-                    var result = _ctx.Users.Add(user);
-                    await _ctx.SaveChangesAsync();
-                    var creationErrorLog = _mapper.Map<UserCreationErrorLog>(userWithRole);
-                    creationErrorLog.LogReson = "User created Successfully ";
-                    creationErrorLog.RoleName = _ctx.Roles.FirstOrDefault(p => p.RoleID == userWithRole.RoleID).RoleName;
-                    _ctx.UserCreationErrorLogs.Add(creationErrorLog);
-                    await _ctx.SaveChangesAsync();
-                    var userRole = _mapper.Map<UserRoleMap>(userWithRole);
-                    userRole.UserID = user.UserID;
-                    var r = _ctx.UserRoleMaps.Add(userRole);
-                    await _ctx.SaveChangesAsync();
+                    // Creating User
+                    User user1 = (from tb1 in _ctx.Users
+                                  where tb1.UserCode == userWithRole.UserCode && tb1.IsActive == true
+                                  select tb1).FirstOrDefault();
 
-                    if (userWithRole.OrganizationList != null)
+                    if (user1 == null)
                     {
-                        foreach (var org in userWithRole.OrganizationList)
+                        string DefaultPassword = _configuration["AppSettings:DefaultPassword"];
+                        var user = _mapper.Map<User>(userWithRole);
+                        user.UserID = Guid.NewGuid();
+                        user.Password = _passwordEncryptor.Encrypt(userWithRole.Password, true);
+                        user.CreatedBy = userWithRole.CreatedBy;
+                        user.IsActive = true;
+                        user.IsLocked = false;
+                        var result = _ctx.Users.Add(user);
+                        await _ctx.SaveChangesAsync();
+                        var creationErrorLog = _mapper.Map<UserCreationErrorLog>(userWithRole);
+                        creationErrorLog.LogReson = "User created Successfully ";
+                        creationErrorLog.RoleName = _ctx.Roles.FirstOrDefault(p => p.RoleID == userWithRole.RoleID).RoleName;
+                        _ctx.UserCreationErrorLogs.Add(creationErrorLog);
+                        var userRole = _mapper.Map<UserRoleMap>(userWithRole);
+                        userRole.UserID = user.UserID;
+                        userRole.IsActive = true;
+                        var r = _ctx.UserRoleMaps.Add(userRole);
+
+                        if (userWithRole.OrganizationList != null)
                         {
-                            UserOrganizationMap userOrganizationMap = new UserOrganizationMap()
+                            foreach (var org in userWithRole.OrganizationList)
                             {
-                                UserID = user.UserID,
-                                OrganizationCode = org,
-                                IsActive = true,
-                                CreatedOn = DateTime.Now
-                            };
-                            var r1 = _ctx.UserOrganizationMaps.Add(userOrganizationMap);
+                                UserOrganizationMap userOrganizationMap = new UserOrganizationMap()
+                                {
+                                    UserID = user.UserID,
+                                    OrganizationCode = org,
+                                    IsActive = true,
+                                    CreatedOn = DateTime.Now
+                                };
+                                var r1 = _ctx.UserOrganizationMaps.Add(userOrganizationMap);
+                            }
                         }
-                    }
-                    await _ctx.SaveChangesAsync();
 
-                    if (userWithRole.PlantList != null)
-                    {
-                        foreach (var PlantID in userWithRole.PlantList)
+                        if (userWithRole.PlantList != null)
                         {
-                            UserPlantMap userPlantMap = new UserPlantMap()
+                            foreach (var PlantID in userWithRole.PlantList)
                             {
-                                UserID = user.UserID,
-                                PlantCode = PlantID,
-                                IsActive = true,
-                                CreatedOn = DateTime.Now
-                            };
-                            var r1 = _ctx.UserPlantMaps.Add(userPlantMap);
+                                UserPlantMap userPlantMap = new UserPlantMap()
+                                {
+                                    UserID = user.UserID,
+                                    PlantCode = PlantID,
+                                    IsActive = true,
+                                    CreatedOn = DateTime.Now
+                                };
+                                var r1 = _ctx.UserPlantMaps.Add(userPlantMap);
+                            }
                         }
-                    }
-                    await _ctx.SaveChangesAsync();
 
-                    if (userWithRole.SLSgroups != null || userWithRole.SLSgroups.Count > 0)
-                    {
-                        foreach (var sls in userWithRole.SLSgroups)
+                        if (userWithRole.SLSgroups != null || userWithRole.SLSgroups.Count > 0)
                         {
-                            UserSalesGroupMap salesGroupMap = new UserSalesGroupMap()
+                            foreach (var sls in userWithRole.SLSgroups)
                             {
-                                CreatedOn = DateTime.Now,
-                                UserID = user.UserID,
-                                SGID = sls,
-                                IsActive = true,
+                                UserSalesGroupMap salesGroupMap = new UserSalesGroupMap()
+                                {
+                                    CreatedOn = DateTime.Now,
+                                    UserID = user.UserID,
+                                    SGID = sls,
+                                    IsActive = true,
 
-                            };
-                            _ctx.UserSalesGroupMaps.Add(salesGroupMap);
+                                };
+                                _ctx.UserSalesGroupMaps.Add(salesGroupMap);
+                            }
                         }
-                    }
-                    await _ctx.SaveChangesAsync();
-                    //Send Mail
-                    try
-                    {
-                        new Thread(async () =>
-                        {
-                            await _emailHelper.SendMailToUser(user.Email, user.UserName, userWithRole.Password);
-                        }).Start();
-                    }
+                        await _emailHelper.SendMailToUser(user.Email, user.UserName, userWithRole.Password);
 
-                    catch (Exception ex)
-                    {
-                        throw ex;
+                        await _ctx.SaveChangesAsync();
+                        transaction.Commit();
+                        transaction.Dispose();
                     }
-
+                    else
+                    {
+                        throw new Exception("User with same user code already exist");
+                    }
+                    return true;
                 }
-                else
+                catch (Exception ex)
                 {
-                    throw new Exception("User with same user code already exist");
+                    transaction.Rollback();
+                    transaction.Dispose();
+                    throw new Exception(ex.Message);
                 }
-                return true;
             }
-            catch (Exception ex)
-            {
-                throw new Exception(ex.Message);
-            }
-
         }
 
         public async Task<bool> CreateCustomers(List<CustomerData> customerDatas)
@@ -603,115 +594,115 @@ namespace AREML.EPOD.Data.Repositories
 
         public async Task<bool> UpdateUser(UserWithRole userWithRole)
         {
-            try
+            using(var transaction = _ctx.Database.BeginTransaction())
             {
-                User user1 = (from tb1 in _ctx.Users
-                              where tb1.IsActive == true && tb1.UserID == userWithRole.UserID
-                              select tb1).FirstOrDefault();
-
-                if (user1 != null)
+                try
                 {
-                    //Updating User details
-                    var user = (from tb in _ctx.Users
-                                where tb.IsActive &&
-                                tb.UserID == userWithRole.UserID
-                                select tb).FirstOrDefault();
-                    user.UserName = userWithRole.UserName;
-                    user.Email = userWithRole.Email;
-                    //user.Password = Encrypt(userWithRole.Password, true);
-                    user.ContactNumber = userWithRole.ContactNumber;
-                    user.IsActive = true;
-                    user.ModifiedOn = DateTime.Now;
-                    user.ModifiedBy = userWithRole.ModifiedBy;
+                    User user1 = (from tb1 in _ctx.Users
+                                  where tb1.IsActive == true && tb1.UserID == userWithRole.UserID
+                                  select tb1).FirstOrDefault();
 
-                    await _ctx.SaveChangesAsync();
-
-                    UserRoleMap OldUserRole = _ctx.UserRoleMaps.Where(x => x.UserID == userWithRole.UserID && x.IsActive == true).FirstOrDefault();
-                    if (OldUserRole.RoleID != userWithRole.RoleID)
+                    if (user1 != null)
                     {
-                        //Delete old role related to the user
-                        _ctx.UserRoleMaps.Remove(OldUserRole);
-                        await _ctx.SaveChangesAsync();
+                        //Updating User details
+                        var user = (from tb in _ctx.Users
+                                    where tb.IsActive &&
+                                    tb.UserID == userWithRole.UserID
+                                    select tb).FirstOrDefault();
+                        user.UserName = userWithRole.UserName;
+                        user.Email = userWithRole.Email;
+                        //user.Password = Encrypt(userWithRole.Password, true);
+                        user.ContactNumber = userWithRole.ContactNumber;
+                        user.IsActive = true;
+                        user.ModifiedOn = DateTime.Now;
+                        user.ModifiedBy = userWithRole.ModifiedBy;
 
-                        //Add new roles for the user
-                        UserRoleMap UserRole = new UserRoleMap()
+                        UserRoleMap OldUserRole = _ctx.UserRoleMaps.Where(x => x.UserID == userWithRole.UserID && x.IsActive == true).FirstOrDefault();
+                        if (OldUserRole.RoleID != userWithRole.RoleID)
                         {
-                            RoleID = userWithRole.RoleID,
-                            UserID = user.UserID,
-                            IsActive = true,
-                            CreatedBy = userWithRole.ModifiedBy,
-                            CreatedOn = DateTime.Now,
-                        };
-                        var r = _ctx.UserRoleMaps.Add(UserRole);
-                        await _ctx.SaveChangesAsync();
-                    }
+                            //Delete old role related to the user
+                            _ctx.UserRoleMaps.Remove(OldUserRole);
 
-                    _ctx.UserOrganizationMaps.Where(x => x.UserID == userWithRole.UserID).ToList().ForEach(y => _ctx.UserOrganizationMaps.Remove(y));
-                    await _ctx.SaveChangesAsync();
-                    if (userWithRole.OrganizationList != null)
-                    {
-                        foreach (var org in userWithRole.OrganizationList)
-                        {
-                            UserOrganizationMap userOrganizationMap = new UserOrganizationMap()
+                            //Add new roles for the user
+                            UserRoleMap UserRole = new UserRoleMap()
                             {
+                                RoleID = userWithRole.RoleID,
                                 UserID = user.UserID,
-                                OrganizationCode = org,
                                 IsActive = true,
-                                CreatedOn = DateTime.Now
+                                CreatedBy = userWithRole.ModifiedBy,
+                                CreatedOn = DateTime.Now,
                             };
-                            var r1 = _ctx.UserOrganizationMaps.Add(userOrganizationMap);
+                            var r = _ctx.UserRoleMaps.Add(UserRole);
                         }
-                    }
-                    await _ctx.SaveChangesAsync();
 
-                    _ctx.UserPlantMaps.Where(x => x.UserID == userWithRole.UserID).ToList().ForEach(y => _ctx.UserPlantMaps.Remove(y));
-                    await _ctx.SaveChangesAsync();
-                    if (userWithRole.PlantList != null)
-                    {
-                        foreach (var PlantID in userWithRole.PlantList)
+                        _ctx.UserOrganizationMaps.Where(x => x.UserID == userWithRole.UserID).ToList().ForEach(y => _ctx.UserOrganizationMaps.Remove(y));
+                        
+                        if (userWithRole.OrganizationList != null)
                         {
-                            UserPlantMap userPlantMap = new UserPlantMap()
+                            foreach (var org in userWithRole.OrganizationList)
                             {
-                                UserID = user.UserID,
-                                PlantCode = PlantID,
-                                IsActive = true,
-                                CreatedOn = DateTime.Now
-                            };
-                            var r1 = _ctx.UserPlantMaps.Add(userPlantMap);
+                                UserOrganizationMap userOrganizationMap = new UserOrganizationMap()
+                                {
+                                    UserID = user.UserID,
+                                    OrganizationCode = org,
+                                    IsActive = true,
+                                    CreatedOn = DateTime.Now
+                                };
+                                var r1 = _ctx.UserOrganizationMaps.Add(userOrganizationMap);
+                            }
                         }
-                    }
-                    await _ctx.SaveChangesAsync();
-                    _ctx.UserSalesGroupMaps.RemoveRange(_ctx.UserSalesGroupMaps.Where(k => k.UserID == userWithRole.UserID));
-                    await _ctx.SaveChangesAsync();
-                    if (userWithRole.SLSgroups != null || userWithRole.SLSgroups.Count > 0)
-                    {
-                        foreach (var sls in userWithRole.SLSgroups)
+
+                        _ctx.UserPlantMaps.Where(x => x.UserID == userWithRole.UserID).ToList().ForEach(y => _ctx.UserPlantMaps.Remove(y));
+                        
+                        if (userWithRole.PlantList != null)
                         {
-                            UserSalesGroupMap userSales = new UserSalesGroupMap()
+                            foreach (var PlantID in userWithRole.PlantList)
                             {
-                                UserID = userWithRole.UserID,
-                                SGID = sls,
-                                CreatedOn = DateTime.Now
-                            };
-                            _ctx.UserSalesGroupMaps.Add(userSales);
+                                UserPlantMap userPlantMap = new UserPlantMap()
+                                {
+                                    UserID = user.UserID,
+                                    PlantCode = PlantID,
+                                    IsActive = true,
+                                    CreatedOn = DateTime.Now
+                                };
+                                var r1 = _ctx.UserPlantMaps.Add(userPlantMap);
+                            }
                         }
+                        _ctx.UserSalesGroupMaps.RemoveRange(_ctx.UserSalesGroupMaps.Where(k => k.UserID == userWithRole.UserID));
+                        
+                        if (userWithRole.SLSgroups != null || userWithRole.SLSgroups.Count > 0)
+                        {
+                            foreach (var sls in userWithRole.SLSgroups)
+                            {
+                                UserSalesGroupMap userSales = new UserSalesGroupMap()
+                                {
+                                    UserID = userWithRole.UserID,
+                                    SGID = sls,
+                                    CreatedOn = DateTime.Now
+                                };
+                                _ctx.UserSalesGroupMaps.Add(userSales);
+                            }
+                        }
+                        await _ctx.SaveChangesAsync();
+                        transaction.Commit();
+                        transaction.Dispose();
+                        return true;
+
                     }
-                    await _ctx.SaveChangesAsync();
-                    return true;
+                    else
+                    {
+                        // return HttpContent(HttpStatusCode.BadRequest, "User with same user code already exist");
+                        throw new Exception("User with same user code already exist");
+                    }
 
                 }
-                else
+                catch (Exception ex)
                 {
-                    // return HttpContent(HttpStatusCode.BadRequest, "User with same user code already exist");
-                    throw new Exception("User with same user code already exist");
+                    transaction.Rollback();
+                    transaction.Dispose();
+                    throw ex;
                 }
-
             }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-
         }
 
         public List<UserWithRole> GetAllUsers(int Page)
@@ -2059,52 +2050,52 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                //var result = (from tb in _ctx.Plants
-                //              where tb.IsActive
-                //              select tb).ToList();
+                var result = (from tb in _ctx.Plants
+                              where tb.IsActive
+                              select tb).ToList();
 
-                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                //result.ForEach(record =>
-                //{
-                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                //    {
-                //        PlantCode = record.PlantCode,
-                //        Description = record.Description,
-                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                //                            where tb.PlantCode == record.PlantCode
-                //                            select tb.OrganizationCode).FirstOrDefault(),
-                //        IsActive = record.IsActive,
-                //        CreatedBy = record.CreatedBy,
-                //        CreatedOn = record.CreatedOn,
-                //        ModifiedOn = record.ModifiedOn,
-                //        ModifiedBy = record.ModifiedBy,
-                //    });
+                result.ForEach(record =>
+                {
+                    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                    {
+                        PlantCode = record.PlantCode,
+                        Description = record.Description,
+                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                                            where tb.PlantCode == record.PlantCode
+                                            select tb.OrganizationCode).FirstOrDefault(),
+                        IsActive = record.IsActive,
+                        CreatedBy = record.CreatedBy,
+                        CreatedOn = record.CreatedOn,
+                        ModifiedOn = record.ModifiedOn,
+                        ModifiedBy = record.ModifiedBy,
+                    });
 
-                //});
-                //return PlantWithOrganizationList;
-
-                var query = from plant in _ctx.Plants
-                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
-                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
-                            where plant.IsActive
-                            select new PlantWithOrganization
-                            {
-                                PlantCode = plant.PlantCode,
-                                Description = plant.Description,
-                                OrganizationCode = org.OrganizationCode,
-                                IsActive = plant.IsActive,
-                                CreatedBy = plant.CreatedBy,
-                                CreatedOn = plant.CreatedOn,
-                                ModifiedOn = plant.ModifiedOn,
-                                ModifiedBy = plant.ModifiedBy,
-                            };
-
-                // Execute the query and convert the result to a list
-                List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
-
+                });
                 return PlantWithOrganizationList;
+
+                //var query = from plant in _ctx.Plants
+                //            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                //            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                //            where plant.IsActive
+                //            select new PlantWithOrganization
+                //            {
+                //                PlantCode = plant.PlantCode,
+                //                Description = plant.Description,
+                //                OrganizationCode = org.OrganizationCode,
+                //                IsActive = plant.IsActive,
+                //                CreatedBy = plant.CreatedBy,
+                //                CreatedOn = plant.CreatedOn,
+                //                ModifiedOn = plant.ModifiedOn,
+                //                ModifiedBy = plant.ModifiedBy,
+                //            };
+
+                //// Execute the query and convert the result to a list
+                //List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
+
+                //return PlantWithOrganizationList;
             }
             catch (Exception ex)
             {
@@ -2116,52 +2107,52 @@ namespace AREML.EPOD.Data.Repositories
         {
             try
             {
-                //var result = (from tb in _ctx.Plants
-                //              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
-                //              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
-                //              select tb).ToList();
+                var result = (from tb in _ctx.Plants
+                              join tb1 in _ctx.UserPlantMaps on tb.PlantCode equals tb1.PlantCode
+                              where tb1.UserID == UserID && tb.IsActive && tb1.IsActive
+                              select tb).ToList();
 
-                //List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
+                List<PlantWithOrganization> PlantWithOrganizationList = new List<PlantWithOrganization>();
 
-                //result.ForEach(record =>
-                //{
-                //    PlantWithOrganizationList.Add(new PlantWithOrganization()
-                //    {
-                //        PlantCode = record.PlantCode,
-                //        Description = record.Description,
-                //        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
-                //                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
-                //                            where tb.PlantCode == record.PlantCode
-                //                            select tb.OrganizationCode).FirstOrDefault(),
-                //        IsActive = record.IsActive,
-                //        CreatedBy = record.CreatedBy,
-                //        CreatedOn = record.CreatedOn,
-                //        ModifiedOn = record.ModifiedOn,
-                //        ModifiedBy = record.ModifiedBy,
-                //    });
+                result.ForEach(record =>
+                {
+                    PlantWithOrganizationList.Add(new PlantWithOrganization()
+                    {
+                        PlantCode = record.PlantCode,
+                        Description = record.Description,
+                        OrganizationCode = (from tb in _ctx.PlantOrganizationMaps
+                                            join tb1 in _ctx.Organizations on tb.OrganizationCode equals tb1.OrganizationCode
+                                            where tb.PlantCode == record.PlantCode
+                                            select tb.OrganizationCode).FirstOrDefault(),
+                        IsActive = record.IsActive,
+                        CreatedBy = record.CreatedBy,
+                        CreatedOn = record.CreatedOn,
+                        ModifiedOn = record.ModifiedOn,
+                        ModifiedBy = record.ModifiedBy,
+                    });
 
-                //});
+                });
 
 
-                var query = from plant in _ctx.Plants
-                            join upMap in _ctx.UserPlantMaps on plant.PlantCode equals upMap.PlantCode
-                            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
-                            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
-                            where upMap.UserID == UserID && plant.IsActive
-                            select new PlantWithOrganization
-                            {
-                                PlantCode = plant.PlantCode,
-                                Description = plant.Description,
-                                OrganizationCode = org.OrganizationCode,
-                                IsActive = plant.IsActive,
-                                CreatedBy = plant.CreatedBy,
-                                CreatedOn = plant.CreatedOn,
-                                ModifiedOn = plant.ModifiedOn,
-                                ModifiedBy = plant.ModifiedBy,
-                            };
+                //var query = from plant in _ctx.Plants
+                //            join upMap in _ctx.UserPlantMaps on plant.PlantCode equals upMap.PlantCode
+                //            join map in _ctx.PlantOrganizationMaps on plant.PlantCode equals map.PlantCode
+                //            join org in _ctx.Organizations on map.OrganizationCode equals org.OrganizationCode
+                //            where upMap.UserID == UserID && plant.IsActive
+                //            select new PlantWithOrganization
+                //            {
+                //                PlantCode = plant.PlantCode,
+                //                Description = plant.Description,
+                //                OrganizationCode = org.OrganizationCode,
+                //                IsActive = plant.IsActive,
+                //                CreatedBy = plant.CreatedBy,
+                //                CreatedOn = plant.CreatedOn,
+                //                ModifiedOn = plant.ModifiedOn,
+                //                ModifiedBy = plant.ModifiedBy,
+                //            };
 
-                // Execute the query and convert the result to a list
-                List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
+                //// Execute the query and convert the result to a list
+                //List<PlantWithOrganization> PlantWithOrganizationList = query.Distinct().ToList();
 
                 return PlantWithOrganizationList;
             }

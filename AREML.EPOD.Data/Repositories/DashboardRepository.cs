@@ -5,6 +5,9 @@ using AREML.EPOD.Core.Entities.ForwardLogistics;
 using System.Linq;
 using AREML.EPOD.Core.Entities.Master;
 using System.Numerics;
+using AREML.EPOD.Data.Logging;
+using Newtonsoft.Json;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace AREML.EPOD.Data.Repositories
 {
@@ -683,7 +686,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "partiallyconfirmed" &&
 
@@ -694,36 +696,87 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
-                    return result;
+                    var data = (from tb in result
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -772,6 +825,25 @@ namespace AREML.EPOD.Data.Repositories
                                             DELIVERY_TIME = tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                    var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result;
                 }
 
@@ -948,7 +1020,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() != "open" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -958,40 +1029,91 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).ToListAsync();
 
                     var result1 = (from tb in result
                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                    select tb).Skip(SkipValue).Take(TakeValue).ToList();
-                    return result1;
+                    var data = (from tb in result1
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -1042,6 +1164,25 @@ namespace AREML.EPOD.Data.Repositories
                     var result1 = (from tb in result
                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                    select tb).Skip(SkipValue).Take(TakeValue).ToList();
+                    var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result1)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result1;
                 }
             }
@@ -1155,7 +1296,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() != "open" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -1166,40 +1306,91 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).ToListAsync();
                     var result1 = (from tb in result
                                    where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                    orderby tb.HEADER_ID
                                    select tb).Skip(SkipValue).Take(TakeValue).ToList();
-                    return result1;
+                    var data = (from tb in result1
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -1250,6 +1441,25 @@ namespace AREML.EPOD.Data.Repositories
                                    where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                    orderby tb.HEADER_ID
                                    select tb).Skip(SkipValue).Take(TakeValue).ToList();
+                    var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result1)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result1;
                 }
 
@@ -1302,6 +1512,26 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
                                         INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
+                return result;
                 return result;
             }
             catch (Exception ex)
@@ -1352,6 +1582,26 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
                                         INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
+                return result;
                 return result;
             }
             catch (Exception ex)
@@ -1402,6 +1652,25 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
                                         INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
                 return result;
             }
             catch (Exception ex)
@@ -1452,6 +1721,26 @@ namespace AREML.EPOD.Data.Repositories
                                         DELIVERY_TIME = tb.DELIVERY_TIME,
                                         INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                     }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
+                return result;
                 return result;
             }
             catch (Exception ex)
@@ -1507,6 +1796,25 @@ namespace AREML.EPOD.Data.Repositories
                                where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                orderby tb.HEADER_ID
                                select tb).Skip(SkipValue).Take(TakeValue).ToList();
+                var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result1)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
                 return result1;
             }
             catch (Exception ex)
@@ -1564,6 +1872,25 @@ namespace AREML.EPOD.Data.Repositories
                                where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
                                orderby tb.HEADER_ID
                                select tb).Skip(SkipValue).Take(TakeValue).ToList();
+                var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result1)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
                 return result1;
             }
             catch (Exception ex)
@@ -1626,6 +1953,25 @@ namespace AREML.EPOD.Data.Repositories
                 {
                     result1 = result.Where(t => DateTime.Now.Date > t.PROPOSED_DELIVERY_DATE && t.PROPOSED_DELIVERY_DATE != null).Skip(SkipValue).Take(TakeValue).ToList();
                 }
+                var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                var attachments = await _dbContext.P_INV_ATTACHMENT
+                    .Where(att => headerIds.Contains(att.HEADER_ID))
+                    .Select(att => new
+                    {
+                        att.HEADER_ID,
+                        att.ATTACHMENT_ID,
+                        att.FILE_NAME
+                    }).ToListAsync();
+
+                var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                foreach (var header in result1)
+                {
+                    if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                    {
+                        header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                        header.ATTACHMENT_NAME = att.FILE_NAME;
+                    }
+                }
                 return result1;
             }
             catch (Exception ex)
@@ -1675,7 +2021,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "open" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -1686,38 +2031,89 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).ToListAsync();
 
                     var result1 = result.Where(t => DateTime.Now.Date <= t.PROPOSED_DELIVERY_DATE || t.PROPOSED_DELIVERY_DATE == null).Skip(SkipValue).Take(TakeValue).ToList();
-                    return result1;
+                    var data = (from tb in result1
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -1767,6 +2163,25 @@ namespace AREML.EPOD.Data.Repositories
                                         }).ToListAsync();
 
                     var result1 = result.Where(t => DateTime.Now.Date <= t.PROPOSED_DELIVERY_DATE || t.PROPOSED_DELIVERY_DATE == null).Skip(SkipValue).Take(TakeValue).ToList();
+                    var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result1)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result1;
                 }
             }
@@ -1812,7 +2227,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "open" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -1822,38 +2236,89 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
-                                            DRIVER_CONTACT = tb.DRIVER_CONTACT,
-                                            TRACKING_LINK = tb.TRACKING_LINK,
-                                            TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
-                                            TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
-                                            DELIVERY_DATE = tb.DELIVERY_DATE,
-                                            DELIVERY_TIME = tb.DELIVERY_TIME,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
+                                            tb.DRIVER_CONTACT,
+                                            tb.TRACKING_LINK,
+                                            tb.TOTAL_TRAVEL_TIME,
+                                            tb.TOTAL_DISTANCE,
+                                            tb.DELIVERY_DATE,
+                                            tb.DELIVERY_TIME,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).ToListAsync();
 
                     var result1 = result.Where(t => DateTime.Now.Date > t.PROPOSED_DELIVERY_DATE && t.PROPOSED_DELIVERY_DATE != null).Skip(SkipValue).Take(TakeValue).ToList();
-                    return result1;
+                    var data = (from tb in result1
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    DRIVER_CONTACT = tb.DRIVER_CONTACT,
+                                    TRACKING_LINK = tb.TRACKING_LINK,
+                                    TOTAL_TRAVEL_TIME = tb.TOTAL_TRAVEL_TIME,
+                                    TOTAL_DISTANCE = tb.TOTAL_DISTANCE,
+                                    DELIVERY_DATE = tb.DELIVERY_DATE,
+                                    DELIVERY_TIME = tb.DELIVERY_TIME,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -1903,6 +2368,25 @@ namespace AREML.EPOD.Data.Repositories
                                         }).ToListAsync();
 
                     var result1 = result.Where(t => DateTime.Now.Date > t.PROPOSED_DELIVERY_DATE && t.PROPOSED_DELIVERY_DATE != null).Skip(SkipValue).Take(TakeValue).ToList();
+                    var headerIds = result1.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result1)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result1;
                 }
             }
@@ -1949,79 +2433,255 @@ namespace AREML.EPOD.Data.Repositories
                                     select tb.PlantCode).Distinct().ToListAsync();
                 }
 
+                LogWriter.WriteToFile("Query starts1");
+                LogWriter.WriteToFile($"cgs {JsonConvert.SerializeObject(cgs)}");
+                var query = await (from tb in _dbContext.P_INV_HEADER_DETAIL
+                            join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                            join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                            join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                            where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID
+                            select new
+                            {
+                                tb.HEADER_ID,
+                                tb.INV_NO,
+                                tb.INV_DATE,
+                                tb.STATUS,
+                                tb.ORGANIZATION,
+                                tb.DIVISION,
+                                tb.PLANT,
+                                tb.CUSTOMER_GROUP_DESC,
+                                tb.CUSTOMER_NAME
+                            }).ToListAsync();
                 if (cgs.Count() > 0)
                 {
-                    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
-                                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
-                                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
-                                        where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID &&
-                                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
-                                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
-                                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
-                                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
-                                         && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
-                                         && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) &&
-                                         (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
-                                        select new
-                                        {
-                                            tb.HEADER_ID,
-                                            tb.INV_NO,
-                                            tb.INV_DATE,
-                                            tb.STATUS,
-                                        }).ToListAsync();
-                    InvoiceStatusCount.TotalInvoices = result.Count;
-                    InvoiceStatusCount.ConfirmedInvoices = (from tb in result
-                                                            where tb.STATUS.ToLower() == "confirmed"
-                                                            select tb.INV_NO).Count();
-                    InvoiceStatusCount.PartiallyConfirmedInvoices = (from tb in result
-                                                                     where tb.STATUS.ToLower() == "partiallyconfirmed"
-                                                                     select tb.INV_NO).Count();
-                    InvoiceStatusCount.SavedInvoices = (from tb in result
-                                                        where tb.STATUS.ToLower() == "saved"
-                                                        select tb.INV_NO).Count();
-                    InvoiceStatusCount.PendingInvoices = (from tb in result
-                                                          where tb.STATUS.ToLower() == "open"
-                                                          select tb.INV_NO).Count();
-                    return InvoiceStatusCount;
-                }
-                else
-                {
-                    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
-                                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
-                                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
+                    LogWriter.WriteToFile("Query with cgs join starts");
+                    LogWriter.WriteToFile($"cgs {JsonConvert.SerializeObject(cgs)}");
 
-                                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
-                                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
-                                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
-                                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
-                                         && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
-                                        && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
-                                        select new
-                                        {
-                                            tb.HEADER_ID,
-                                            tb.INV_NO,
-                                            tb.INV_DATE,
-                                            tb.STATUS,
-                                        }).ToListAsync();
-                    InvoiceStatusCount.TotalInvoices = result.Count;
-                    InvoiceStatusCount.ConfirmedInvoices = (from tb in result
-                                                            where tb.STATUS.ToLower() == "confirmed"
-                                                            select tb.INV_NO).Count();
-                    InvoiceStatusCount.PartiallyConfirmedInvoices = (from tb in result
-                                                                     where tb.STATUS.ToLower() == "partiallyconfirmed"
-                                                                     select tb.INV_NO).Count();
-                    InvoiceStatusCount.SavedInvoices = (from tb in result
-                                                        where tb.STATUS.ToLower() == "saved"
-                                                        select tb.INV_NO).Count();
-                    InvoiceStatusCount.PendingInvoices = (from tb in result
-                                                          where tb.STATUS.ToLower() == "open"
-                                                          select tb.INV_NO).Count();
-                    return InvoiceStatusCount;
+                    query = (from tb in query
+                            join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                            select tb).ToList();
                 }
+                //LogWriter.WriteToFile("Query before :- " + query.ToQueryString());
+                if (isFromDate && filterClass.StartDate.HasValue)
+                {
+                    query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date).ToList();
+                }
+
+                if (isEndDate && filterClass.EndDate.HasValue)
+                {
+                    query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date).ToList();
+                }
+
+                if (isOrganization && filterClass.Organization != null && filterClass.Organization.Any())
+                {
+                    query = query.Where(tb => filterClass.Organization.Contains(tb.ORGANIZATION)).ToList();
+                }
+
+                if (isDivision && filterClass.Division != null && filterClass.Division.Any())
+                {
+                    query = query.Where(tb => filterClass.Division.Contains(tb.DIVISION)).ToList();
+                }
+
+                if (isPlant && filterClass.PlantList != null && filterClass.PlantList.Any())
+                {
+                    query = query.Where(tb => filterClass.PlantList.Contains(tb.PLANT)).ToList();
+                }
+
+                if (isPlantGroup && plants != null && plants.Any())
+                {
+                    query = query.Where(tb => plants.Contains(tb.PLANT)).ToList();
+                }
+
+                if (isCustomerGroup && filterClass.CustomerGroup != null && filterClass.CustomerGroup.Any())
+                {
+                    query = query.Where(tb => filterClass.CustomerGroup.Contains(tb.CUSTOMER_GROUP_DESC)).ToList();
+                }
+
+                if (isCustomerName && !string.IsNullOrEmpty(filterClass.CustomerName))
+                {
+                    query = query.Where(tb => tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName.ToLower())).ToList();
+                }
+                //LogWriter.WriteToFile("Query After :- " + query.ToQueryString());
+                var result = query;
+
+                InvoiceStatusCount.TotalInvoices = result.Count;
+                InvoiceStatusCount.ConfirmedInvoices = (from tb in result
+                                                        where tb.STATUS.ToLower() == "confirmed"
+                                                        select tb.INV_NO).Count();
+                InvoiceStatusCount.PartiallyConfirmedInvoices = (from tb in result
+                                                                 where tb.STATUS.ToLower() == "partiallyconfirmed"
+                                                                 select tb.INV_NO).Count();
+                InvoiceStatusCount.SavedInvoices = (from tb in result
+                                                    where tb.STATUS.ToLower() == "saved"
+                                                    select tb.INV_NO).Count();
+                InvoiceStatusCount.PendingInvoices = (from tb in result
+                                                      where tb.STATUS.ToLower() == "open"
+                                                      select tb.INV_NO).Count();
+                return InvoiceStatusCount;
+
+                //if (cgs.Count() > 0)
+                //{
+                //    LogWriter.WriteToFile("Query starts1");
+                //    LogWriter.WriteToFile($"cgs {JsonConvert.SerializeObject(cgs)}");
+                //    var query = from tb in _dbContext.P_INV_HEADER_DETAIL
+                //                join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                //                join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                //                join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                //                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                //                where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID
+                //                select new
+                //                {
+                //                    tb.HEADER_ID,
+                //                    tb.INV_NO,
+                //                    tb.INV_DATE,
+                //                    tb.STATUS,
+                //                    tb.ORGANIZATION,
+                //                    tb.DIVISION,
+                //                    tb.PLANT,
+                //                    tb.CUSTOMER_GROUP_DESC,
+                //                    tb.CUSTOMER_NAME
+                //                };
+                //    LogWriter.WriteToFile("Query before :- " + query.ToQueryString());
+                //    if (isFromDate && filterClass.StartDate.HasValue)
+                //    {
+                //        query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date);
+                //    }
+
+                //    if (isEndDate && filterClass.EndDate.HasValue)
+                //    {
+                //        query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date);
+                //    }
+
+                //    if (isOrganization && filterClass.Organization != null && filterClass.Organization.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.Organization.Contains(tb.ORGANIZATION));
+                //    }
+
+                //    if (isDivision && filterClass.Division != null && filterClass.Division.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.Division.Contains(tb.DIVISION));
+                //    }
+
+                //    if (isPlant && filterClass.PlantList != null && filterClass.PlantList.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.PlantList.Contains(tb.PLANT));
+                //    }
+
+                //    if (isPlantGroup && plants != null && plants.Any())
+                //    {
+                //        query = query.Where(tb => plants.Contains(tb.PLANT));
+                //    }
+
+                //    if (isCustomerGroup && filterClass.CustomerGroup != null && filterClass.CustomerGroup.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.CustomerGroup.Contains(tb.CUSTOMER_GROUP_DESC));
+                //    }
+
+                //    if (isCustomerName && !string.IsNullOrEmpty(filterClass.CustomerName))
+                //    {
+                //        query = query.Where(tb => tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName.ToLower()));
+                //    }
+                //    LogWriter.WriteToFile("Query After :- " + query.ToQueryString());
+                //    var result = await query.ToListAsync();
+
+                //    InvoiceStatusCount.TotalInvoices = result.Count;
+                //    InvoiceStatusCount.ConfirmedInvoices = (from tb in result
+                //                                            where tb.STATUS.ToLower() == "confirmed"
+                //                                            select tb.INV_NO).Count();
+                //    InvoiceStatusCount.PartiallyConfirmedInvoices = (from tb in result
+                //                                                     where tb.STATUS.ToLower() == "partiallyconfirmed"
+                //                                                     select tb.INV_NO).Count();
+                //    InvoiceStatusCount.SavedInvoices = (from tb in result
+                //                                        where tb.STATUS.ToLower() == "saved"
+                //                                        select tb.INV_NO).Count();
+                //    InvoiceStatusCount.PendingInvoices = (from tb in result
+                //                                          where tb.STATUS.ToLower() == "open"
+                //                                          select tb.INV_NO).Count();
+                //    return InvoiceStatusCount;
+                //}
+                //else
+                //{
+                //    LogWriter.WriteToFile("Query starts");
+                //    var query = from tb in _dbContext.P_INV_HEADER_DETAIL
+                //                join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                //                join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                //                join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                //                where tb3.UserID == filterClass.UserID
+                //                && tb2.UserID == tb3.UserID
+                //                && tb.IS_ACTIVE
+                //                select new
+                //                {
+                //                    tb.HEADER_ID,
+                //                    tb.INV_NO,
+                //                    tb.INV_DATE,
+                //                    tb.STATUS,
+                //                    tb.ORGANIZATION,
+                //                    tb.DIVISION,
+                //                    tb.PLANT,
+                //                    tb.CUSTOMER_GROUP_DESC,
+                //                    tb.CUSTOMER_NAME
+                //                };
+                //    LogWriter.WriteToFile("Query before :- " + query.ToQueryString());
+
+                //    // Apply dynamic filters
+                //    if (isFromDate && filterClass.StartDate.HasValue)
+                //    {
+                //        query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date);
+                //    }
+
+                //    if (isEndDate && filterClass.EndDate.HasValue)
+                //    {
+                //        query = query.Where(tb => tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date);
+                //    }
+
+                //    if (isOrganization && filterClass.Organization != null && filterClass.Organization.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.Organization.Contains(tb.ORGANIZATION));
+                //    }
+
+                //    if (isDivision && filterClass.Division != null && filterClass.Division.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.Division.Contains(tb.DIVISION));
+                //    }
+
+                //    if (isPlant && filterClass.PlantList != null && filterClass.PlantList.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.PlantList.Contains(tb.PLANT));
+                //    }
+
+                //    if (isPlantGroup && plants != null && plants.Any())
+                //    {
+                //        query = query.Where(tb => plants.Contains(tb.PLANT));
+                //    }
+
+                //    if (isCustomerGroup && filterClass.CustomerGroup != null && filterClass.CustomerGroup.Any())
+                //    {
+                //        query = query.Where(tb => filterClass.CustomerGroup.Contains(tb.CUSTOMER_GROUP_DESC));
+                //    }
+
+                //    if (isCustomerName && !string.IsNullOrEmpty(filterClass.CustomerName))
+                //    {
+                //        query = query.Where(tb => tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName.ToLower()));
+                //    }
+                //    LogWriter.WriteToFile("Query after :- " + query.ToQueryString());
+                //    // Execute the query
+                //    var result = await query.ToListAsync();
+
+                //    InvoiceStatusCount.TotalInvoices = result.Count;
+                //    InvoiceStatusCount.ConfirmedInvoices = (from tb in result
+                //                                            where tb.STATUS.ToLower() == "confirmed"
+                //                                            select tb.INV_NO).Count();
+                //    InvoiceStatusCount.PartiallyConfirmedInvoices = (from tb in result
+                //                                                     where tb.STATUS.ToLower() == "partiallyconfirmed"
+                //                                                     select tb.INV_NO).Count();
+                //    InvoiceStatusCount.SavedInvoices = (from tb in result
+                //                                        where tb.STATUS.ToLower() == "saved"
+                //                                        select tb.INV_NO).Count();
+                //    InvoiceStatusCount.PendingInvoices = (from tb in result
+                //                                          where tb.STATUS.ToLower() == "open"
+                //                                          select tb.INV_NO).Count();
+                //    return InvoiceStatusCount;
+                //}
             }
             catch (Exception ex)
             {
@@ -2067,7 +2727,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID && tb.STATUS.ToLower() == "open" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
                                         (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
@@ -2077,8 +2736,12 @@ namespace AREML.EPOD.Data.Repositories
                                          (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         select new
                                         {
-                                            tb.PROPOSED_DELIVERY_DATE
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.CUSTOMER_GROUP_DESC
                                         }).ToListAsync();
+                    result = (from tb in result
+                              join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                              select tb).ToList();
                     Result.Add(result.Count);
                     Result.Add(result.Where(t => DateTime.Now.Date <= t.PROPOSED_DELIVERY_DATE || t.PROPOSED_DELIVERY_DATE == null).Count());
                     Result.Add(result.Where(t => DateTime.Now.Date > t.PROPOSED_DELIVERY_DATE && t.PROPOSED_DELIVERY_DATE != null).Count());
@@ -2143,69 +2806,106 @@ namespace AREML.EPOD.Data.Repositories
                                     where filterClass.PlantGroupList.Contains(tb1.name)
                                     select tb.PlantCode).Distinct().ToListAsync();
                 }
-                if (cgs.Count() > 0)
-                {
-                    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
-                                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
-                                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
-                                        where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE && tb.STATUS.ToLower() != "open" &&
 
-                                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
-                                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
-                                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
-                                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
-                                         && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
-                                        && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
-                                        select new
-                                        {
-                                            tb.HEADER_ID,
-                                            tb.PROPOSED_DELIVERY_DATE,
-                                            tb.VEHICLE_REPORTED_DATE,
-                                            tb.STATUS,
-                                        }).ToListAsync();
-                    deliveryCount.TotalDelivery = result.Count;
-                    deliveryCount.InLineDelivery = (from tb in result
-                                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
-                                                    select tb.HEADER_ID).Count();
-                    deliveryCount.DelayedDelivery = (from tb in result
-                                                     where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
-                                                     select tb.HEADER_ID).Count();
-                    return deliveryCount;
-                }
-                else
-                {
-                    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
-                                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
-                                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
-                                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        where tb3.UserID == filterClass.UserID &&
-                                        tb2.UserID == tb3.UserID &&
-                                        tb.IS_ACTIVE && tb.STATUS.ToLower() != "open" &&
+                var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
+                                    join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                                    join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                                    join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                                    where tb3.UserID == filterClass.UserID &&
+                                    tb2.UserID == tb3.UserID &&
+                                    tb.IS_ACTIVE && tb.STATUS.ToLower() != "open" &&
 
-                                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
-                                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
-                                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
-                                        && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
-                                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
-                                        && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
-                                        select new
-                                        {
-                                            tb.HEADER_ID,
-                                            tb.PROPOSED_DELIVERY_DATE,
-                                            tb.VEHICLE_REPORTED_DATE,
-                                            tb.STATUS,
-                                        }).ToListAsync();
-                    deliveryCount.TotalDelivery = result.Count;
-                    deliveryCount.InLineDelivery = (from tb in result
-                                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
-                                                    select tb.HEADER_ID).Count();
-                    deliveryCount.DelayedDelivery = (from tb in result
-                                                     where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
-                                                     select tb.HEADER_ID).Count();
-                    return deliveryCount;
+                                    (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
+                                    (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
+                                    (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
+                                    && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
+                                     && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
+                                    && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
+                                    select new
+                                    {
+                                        tb.HEADER_ID,
+                                        tb.PROPOSED_DELIVERY_DATE,
+                                        tb.VEHICLE_REPORTED_DATE,
+                                        tb.STATUS,
+                                        tb.CUSTOMER_GROUP_DESC
+                                    }).ToListAsync();
+                if(cgs.Count() > 0)
+                {
+                    result = (from tb in result
+                             join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                             select tb).ToList();
                 }
+                deliveryCount.TotalDelivery = result.Count;
+                deliveryCount.InLineDelivery = (from tb in result
+                                                where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                                                select tb.HEADER_ID).Count();
+                deliveryCount.DelayedDelivery = (from tb in result
+                                                 where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                                                 select tb.HEADER_ID).Count();
+                return deliveryCount;
+                //if (cgs.Count() > 0)
+                //{
+                //    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
+                //                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                //                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                //                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                //                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                //                        where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE && tb.STATUS.ToLower() != "open" &&
+
+                //                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
+                //                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
+                //                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
+                //                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
+                //                         && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
+                //                        && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
+                //                        select new
+                //                        {
+                //                            tb.HEADER_ID,
+                //                            tb.PROPOSED_DELIVERY_DATE,
+                //                            tb.VEHICLE_REPORTED_DATE,
+                //                            tb.STATUS,
+                //                        }).ToListAsync();
+                //    deliveryCount.TotalDelivery = result.Count;
+                //    deliveryCount.InLineDelivery = (from tb in result
+                //                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                //                                    select tb.HEADER_ID).Count();
+                //    deliveryCount.DelayedDelivery = (from tb in result
+                //                                     where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                //                                     select tb.HEADER_ID).Count();
+                //    return deliveryCount;
+                //}
+                //else
+                //{
+                //    var result = await (from tb in _dbContext.P_INV_HEADER_DETAIL
+                //                        join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
+                //                        join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
+                //                        join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
+                //                        where tb3.UserID == filterClass.UserID &&
+                //                        tb2.UserID == tb3.UserID &&
+                //                        tb.IS_ACTIVE && tb.STATUS.ToLower() != "open" &&
+
+                //                        (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
+                //                        (!isEndDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date <= filterClass.EndDate.Value.Date)) &&
+                //                        (!isOrganization || filterClass.Organization.Any(x => x == tb.ORGANIZATION)) && (!isDivision || filterClass.Division.Any(x => x == tb.DIVISION))
+                //                        && (!isPlantGroup || plants.Any(x => x == tb.PLANT))
+                //                         && (!isPlant || filterClass.PlantList.Any(x => x == tb.PLANT))
+                //                        && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC)) && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
+                //                        select new
+                //                        {
+                //                            tb.HEADER_ID,
+                //                            tb.PROPOSED_DELIVERY_DATE,
+                //                            tb.VEHICLE_REPORTED_DATE,
+                //                            tb.STATUS,
+                //                        }).ToListAsync();
+                //    deliveryCount.TotalDelivery = result.Count;
+                //    deliveryCount.InLineDelivery = (from tb in result
+                //                                    where (tb.PROPOSED_DELIVERY_DATE == null || tb.VEHICLE_REPORTED_DATE == null || tb.VEHICLE_REPORTED_DATE.Value.Date <= tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                //                                    select tb.HEADER_ID).Count();
+                //    deliveryCount.DelayedDelivery = (from tb in result
+                //                                     where (tb.PROPOSED_DELIVERY_DATE != null && tb.VEHICLE_REPORTED_DATE != null && tb.VEHICLE_REPORTED_DATE.Value.Date > tb.PROPOSED_DELIVERY_DATE.Value.Date)
+                //                                     select tb.HEADER_ID).Count();
+                //    return deliveryCount;
+                //}
             }
             catch (Exception ex)
             {
@@ -2255,7 +2955,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb.IS_ACTIVE && tb2.UserID == tb3.UserID &&
                                         tb.STATUS.ToLower() == "confirmed" &&
                                         (!isFromDate || (tb.INV_DATE.HasValue && tb.INV_DATE.Value.Date >= filterClass.StartDate.Value.Date)) &&
@@ -2265,30 +2964,75 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
-                    return result;
+                    var data = (from tb in result
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -2331,6 +3075,25 @@ namespace AREML.EPOD.Data.Repositories
                                             STATUS = tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                    var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result;
                 }
             }
@@ -2376,7 +3139,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "saved" &&
 
@@ -2387,30 +3149,75 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
-                    return result;
+                    var data = (from tb in result
+                                join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                                select new InvoiceHeaderDetails()
+                                {
+                                    HEADER_ID = tb.HEADER_ID,
+                                    ORGANIZATION = tb.ORGANIZATION,
+                                    DIVISION = tb.DIVISION,
+                                    PLANT = tb.PLANT,
+                                    PLANT_NAME = tb.PLANT_NAME,
+                                    INV_NO = tb.INV_NO,
+                                    ODIN = tb.ODIN,
+                                    INV_DATE = tb.INV_DATE,
+                                    INV_TYPE = tb.INV_TYPE,
+                                    CUSTOMER = tb.CUSTOMER,
+                                    CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                    VEHICLE_NO = tb.VEHICLE_NO,
+                                    VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                    LR_NO = tb.LR_NO,
+                                    LR_DATE = tb.LR_DATE,
+                                    PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                    VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                    ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                    STATUS = tb.STATUS,
+                                    INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                                }).ToList();
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -2453,6 +3260,25 @@ namespace AREML.EPOD.Data.Repositories
                                             STATUS = tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                    var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result;
                 }
             }
@@ -2501,7 +3327,6 @@ namespace AREML.EPOD.Data.Repositories
                                         join tb1 in _dbContext.UserOrganizationMaps on tb.ORGANIZATION equals tb1.OrganizationCode
                                         join tb2 in _dbContext.UserPlantMaps on tb.PLANT equals tb2.PlantCode
                                         join tb3 in _dbContext.Users on tb1.UserID equals tb3.UserID
-                                        join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
                                         where tb3.UserID == filterClass.UserID && tb2.UserID == tb3.UserID && tb.IS_ACTIVE &&
                                         tb.STATUS.ToLower() == "open" &&
 
@@ -2512,30 +3337,77 @@ namespace AREML.EPOD.Data.Repositories
                                          && (!isPlantGroup || plants.Any(x => x == tb.PLANT)) && (!isCustomerGroup || filterClass.CustomerGroup.Any(k => k == tb.CUSTOMER_GROUP_DESC))
                                          && (!isCustomerName || tb.CUSTOMER_NAME.ToLower().Contains(filterClass.CustomerName))
                                         orderby tb.HEADER_ID
-                                        select new InvoiceHeaderDetails()
+                                        select new 
                                         {
-                                            HEADER_ID = tb.HEADER_ID,
-                                            ORGANIZATION = tb.ORGANIZATION,
-                                            DIVISION = tb.DIVISION,
-                                            PLANT = tb.PLANT,
-                                            PLANT_NAME = tb.PLANT_NAME,
-                                            INV_NO = tb.INV_NO,
-                                            ODIN = tb.ODIN,
-                                            INV_DATE = tb.INV_DATE,
-                                            INV_TYPE = tb.INV_TYPE,
-                                            CUSTOMER = tb.CUSTOMER,
-                                            CUSTOMER_NAME = tb.CUSTOMER_NAME,
-                                            VEHICLE_NO = tb.VEHICLE_NO,
-                                            VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
-                                            LR_NO = tb.LR_NO,
-                                            LR_DATE = tb.LR_DATE,
-                                            PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
-                                            VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
-                                            ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
-                                            STATUS = tb.STATUS,
+                                            tb.CUSTOMER_GROUP_DESC,
+                                            tb.HEADER_ID,
+                                            tb.ORGANIZATION,
+                                            tb.DIVISION,
+                                            tb.PLANT,
+                                            tb.PLANT_NAME,
+                                            tb.INV_NO,
+                                            tb.ODIN,
+                                            tb.INV_DATE,
+                                            tb.INV_TYPE,
+                                            tb.CUSTOMER,
+                                            tb.CUSTOMER_NAME,
+                                            tb.VEHICLE_NO,
+                                            tb.VEHICLE_CAPACITY,
+                                            tb.LR_NO,
+                                            tb.LR_DATE,
+                                            tb.PROPOSED_DELIVERY_DATE,
+                                            tb.VEHICLE_REPORTED_DATE,
+                                            tb.ACTUAL_DELIVERY_DATE,
+                                            tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
-                    return result;
+                    LogWriter.WriteToFile($"------------ Pending res count : {result.Count()}----------");
+                    var data = (from tb in result
+                              join tb4 in cgs on tb.CUSTOMER_GROUP_DESC equals tb4.CustomerGroupCode
+                              select new InvoiceHeaderDetails()
+                              {
+                                  HEADER_ID = tb.HEADER_ID,
+                                  ORGANIZATION = tb.ORGANIZATION,
+                                  DIVISION = tb.DIVISION,
+                                  PLANT = tb.PLANT,
+                                  PLANT_NAME = tb.PLANT_NAME,
+                                  INV_NO = tb.INV_NO,
+                                  ODIN = tb.ODIN,
+                                  INV_DATE = tb.INV_DATE,
+                                  INV_TYPE = tb.INV_TYPE,
+                                  CUSTOMER = tb.CUSTOMER,
+                                  CUSTOMER_NAME = tb.CUSTOMER_NAME,
+                                  VEHICLE_NO = tb.VEHICLE_NO,
+                                  VEHICLE_CAPACITY = tb.VEHICLE_CAPACITY,
+                                  LR_NO = tb.LR_NO,
+                                  LR_DATE = tb.LR_DATE,
+                                  PROPOSED_DELIVERY_DATE = tb.PROPOSED_DELIVERY_DATE,
+                                  VEHICLE_REPORTED_DATE = tb.VEHICLE_REPORTED_DATE,
+                                  ACTUAL_DELIVERY_DATE = tb.ACTUAL_DELIVERY_DATE,
+                                  STATUS = tb.STATUS,
+                                  INVOICE_QUANTITY = tb.INVOICE_QUANTITY
+                              }).ToList();
+                    LogWriter.WriteToFile($"------------ Pending data count : {data.Count()}----------");
+                    var headerIds = data.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in data)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
+                    return data;
                 }
                 else
                 {
@@ -2578,6 +3450,25 @@ namespace AREML.EPOD.Data.Repositories
                                             STATUS = tb.STATUS,
                                             INVOICE_QUANTITY = (from items in _dbContext.P_INV_ITEM_DETAIL where items.HEADER_ID == tb.HEADER_ID select items.QUANTITY).Sum()
                                         }).Skip(SkipValue).Take(TakeValue).ToListAsync();
+                    var headerIds = result.Select(h => h.HEADER_ID).ToList();
+                    var attachments = await _dbContext.P_INV_ATTACHMENT
+                        .Where(att => headerIds.Contains(att.HEADER_ID))
+                        .Select(att => new
+                        {
+                            att.HEADER_ID,
+                            att.ATTACHMENT_ID,
+                            att.FILE_NAME
+                        }).ToListAsync();
+
+                    var attachmentDict = attachments.ToDictionary(att => att.HEADER_ID);
+                    foreach (var header in result)
+                    {
+                        if (attachmentDict.TryGetValue(header.HEADER_ID, out var att))
+                        {
+                            header.ATTACHMENT_ID = att.ATTACHMENT_ID;
+                            header.ATTACHMENT_NAME = att.FILE_NAME;
+                        }
+                    }
                     return result;
                 }
             }
@@ -3738,5 +4629,6 @@ namespace AREML.EPOD.Data.Repositories
 
 
         #endregion
+
     }
 }
