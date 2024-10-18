@@ -55,7 +55,7 @@ namespace AREML.EPOD.Interfaces.IRepositories
         Task<bool> SaveScrollNotification(ScrollNotification notification);
         Task<List<ScrollNotification>> GetScrollNotification();
         Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber);
-        Task<byte[]> DowloandHistoryDocument(int id);
+        Task<AttachmentResponse> DowloandHistoryDocument(int id);
         Task<AttachmentResponse> DowloadPODDocument(int attachmentID);
 
         #region SAP Integration

@@ -1844,43 +1844,80 @@ namespace AREML.EPOD.Data.Repositories
 
         public async Task<List<DocumentHistoryView>> GetDocumentHistoryById(string invoiceNumber)
         {
-            var header = _dbContext.P_INV_HEADER_DETAIL.FirstOrDefault(t => t.ODIN == invoiceNumber || t.INV_NO == invoiceNumber);
-            if (header == null)
+            var headers = _dbContext.P_INV_HEADER_DETAIL.Where(t => t.ODIN == invoiceNumber || t.INV_NO == invoiceNumber).ToList();
+            if (headers == null)
             {
                 throw new Exception("Invoice not found");
             }
             else
             {
-                var documentHistories = await _dbContext.DocumentHistories.Where(t => t.HeaderId == header.HEADER_ID).Select(doc => new DocumentHistoryView
-                {
-                    Id = doc.Id,
-                    FileName = doc.FileName,
-                    FileType = doc.FileType,
-                    CreatedBy = (from tb in _dbContext.Users where tb.UserID.ToString() == doc.CreatedBy select tb.UserName).FirstOrDefault(),
-                    CreatedOn = doc.CreatedOn
-                }).ToListAsync();
+                var headerIds = headers.Select(header => header.HEADER_ID).ToList();
+
+                var documentHistories = await _dbContext.DocumentHistories
+                    .Where(t => headerIds.Contains(t.HeaderId))
+                    .Select(doc => new DocumentHistoryView
+                    {
+                        Id = doc.Id,
+                        FileName = doc.FileName,
+                        FileType = doc.FileType,
+                        CreatedBy = _dbContext.Users
+                            .Where(u => u.UserID.ToString() == doc.CreatedBy)
+                            .Select(u => u.UserName)
+                            .FirstOrDefault(),
+                        CreatedOn = doc.CreatedOn
+                    })
+                    .ToListAsync();
+
                 return documentHistories;
             }
         }
 
-        public async Task<byte[]> DowloandHistoryDocument(int id)
+        public async Task<AttachmentResponse> DowloandHistoryDocument(int id)
         {
             try
             {
-                string path = _networkCredential.ForwardAttachmentsPath;
                 string sharedFolderUserName = _networkCredential.SharedFolderUserName;
                 string sharedFolderPassword = _networkCredential.SharedFolderPassword;
                 string sharedFolderDomain = _networkCredential.SharedFolderDomain;
 
                 var att = await _dbContext.DocumentHistories.Where(x => x.Id == id).FirstOrDefaultAsync();
-                if (att != null && !string.IsNullOrEmpty(att.FilePath))
+                if (att != null)
                 {
-                    byte[] bytes;
-                    using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
+
+                    try
                     {
-                        bytes = File.ReadAllBytes(att.FilePath);
+                        using (var impersonationHelper = new ImpersonationHelper(sharedFolderUserName, sharedFolderDomain, sharedFolderPassword))
+                        {
+                            var fileContent = File.ReadAllBytes(att.FilePath);
+                            var attResponse = new AttachmentResponse()
+                            {
+                                FileName = att.FileName,
+                                FileContent = fileContent,
+                                Extension = "application/pdf"
+                            };
+                            return attResponse;
+                        }
                     }
-                    return bytes;
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (IOException ex)
+                    {
+                        throw ex;
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.InnerException != null)
+                        {
+                            throw new Exception("Inner exception: " + ex.InnerException.Message);
+                        }
+                        throw ex;
+                    }
+                }
+                else
+                {
+                    throw new Exception("Unable to find the attachment");
                 }
                 return null;
             }
